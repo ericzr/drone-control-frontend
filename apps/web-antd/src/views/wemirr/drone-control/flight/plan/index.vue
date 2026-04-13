@@ -199,9 +199,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <Page>
-    <div class="flex flex-col gap-3 p-2">
-      <Card :bordered="false" size="small">
+  <Page :auto-content-height="true">
+    <div class="plan-container">
+      <Card :bordered="false" size="small" class="view-switch-bar">
         <div class="flex items-center justify-between">
           <RadioGroup v-model:value="viewMode" button-style="solid" size="small">
             <Radio.Button value="calendar">日历看板</Radio.Button>
@@ -262,7 +262,7 @@ onMounted(async () => {
 
       <!-- List View (original CRUD) -->
       <template v-else>
-        <fs-page class="page-layout-card">
+        <fs-page class="page-layout-card list-view-wrapper">
           <fs-crud ref="crudRef" v-bind="crudBinding" />
         </fs-page>
       </template>
@@ -352,6 +352,36 @@ onMounted(async () => {
 </template>
 
 <style lang="less" scoped>
+.plan-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px;
+  height: 100%;
+}
+
+.view-switch-bar {
+  position: relative;
+  z-index: 10;
+}
+
+.list-view-wrapper {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+
+  :deep(.fs-page) {
+    height: 100%;
+  }
+
+  :deep(.ant-table-wrapper),
+  :deep(.ant-spin-nested-loading),
+  :deep(.ant-spin-container) {
+    height: 100%;
+  }
+}
+
 .cal-header {
   display: flex;
   align-items: center;
