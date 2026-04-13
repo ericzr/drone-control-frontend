@@ -20,7 +20,7 @@ import {
 } from 'ant-design-vue';
 
 const form = ref({
-  systemName: '大航蜂智慧无人设施控制平台',
+  systemName: '大航蜂Drone OS',
   shortName: '大航蜂',
   mapCenter: '108.94, 34.26',
   defaultZoom: 12,

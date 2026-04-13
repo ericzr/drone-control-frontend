@@ -159,7 +159,7 @@ onMounted(async () => {
     <div class="flex flex-col gap-4 p-2">
       <Alert
         message="c124 将作为 AI 模型中心的一期算法资产来源"
-        description="当前先以模型资产、评估图表和演示能力的形式接入，后续再把训练与推理能力服务化，接入 wemirr-platform 后端。"
+        description="当前先以模型资产、评估图表和演示能力的形式接入，后续再把训练与推理能力服务化，接入大航蜂Drone OS后端。"
         show-icon
         type="success"
       />
