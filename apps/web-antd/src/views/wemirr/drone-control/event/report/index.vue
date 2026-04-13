@@ -49,7 +49,18 @@ const sceneColumns = [
 ];
 
 function handleExport() {
-  message.success('报告导出中，请稍候...');
+  const bom = '\uFEFF';
+  const headers = ['场景', '事件总数', '已闭环', '闭环率(%)', '平均处理时长'];
+  const rows = bySceneData.map((d) => [d.scene, String(d.total), String(d.closed), String(d.rate), d.avgTime]);
+  const csv = bom + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'event_report.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  message.success('事件报告已导出');
 }
 </script>
 

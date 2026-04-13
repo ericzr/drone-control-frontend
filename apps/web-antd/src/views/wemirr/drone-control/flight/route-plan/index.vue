@@ -281,4 +281,11 @@ onMounted(async () => {
     background: var(--ant-color-primary-bg);
   }
 }
+
+@media (max-width: 1024px) {
+  .route-map {
+    height: 400px;
+    min-height: 400px;
+  }
+}
 </style>

@@ -1,7 +1,39 @@
 <script lang="ts" setup name="DispatchStatisticsPage">
 import { Page } from '@vben/common-ui';
 
-import { Card, Col, Progress, Row, Statistic, Table, Tag } from 'ant-design-vue';
+import { onMounted, ref } from 'vue';
+
+import {
+  Button,
+  Card,
+  Col,
+  message,
+  Progress,
+  Row,
+  Skeleton,
+  Statistic,
+  Table,
+  Tag,
+} from 'ant-design-vue';
+
+function exportCsv(headers: string[], rows: string[][], filename: string) {
+  const bom = '\uFEFF';
+  const csv = bom + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const loading = ref(true);
+onMounted(() => {
+  setTimeout(() => {
+    loading.value = false;
+  }, 600);
+});
 
 const summaryStats = [
   { title: '本月总任务', value: 342, suffix: '个' },
@@ -18,6 +50,15 @@ const byTypeData = [
   { type: '设备维护', count: 32, rate: 97 },
   { type: '培训飞行', count: 13, rate: 100 },
 ];
+
+function handleExport() {
+  exportCsv(
+    ['类型', '数量', '完成率(%)'],
+    byTypeData.map((d) => [d.type, String(d.count), String(d.rate)]),
+    'dispatch_statistics.csv',
+  );
+  message.success('调度统计已导出');
+}
 
 const byDeptData = [
   { dept: '飞行一队', total: 98, done: 95, rate: 96.9 },
@@ -50,17 +91,20 @@ const maxTimeCount = Math.max(...byTimeData.map((d) => d.count));
 <template>
   <Page>
     <div class="flex flex-col gap-4 p-2">
-      <Row :gutter="[16, 16]">
-        <Col v-for="s in summaryStats" :key="s.title" :lg="6" :md="12" :span="24">
-          <Card :bordered="false">
-            <Statistic :suffix="s.suffix" :title="s.title" :value="s.value" />
-          </Card>
-        </Col>
-      </Row>
+      <Skeleton :loading="loading" active :paragraph="{ rows: 1 }">
+        <Row :gutter="[16, 16]">
+          <Col v-for="s in summaryStats" :key="s.title" :lg="6" :md="12" :span="24">
+            <Card :bordered="false">
+              <Statistic :suffix="s.suffix" :title="s.title" :value="s.value" />
+            </Card>
+          </Col>
+        </Row>
+      </Skeleton>
 
       <Row :gutter="[16, 16]">
         <Col :lg="12" :span="24">
           <Card :bordered="false" title="按类型统计">
+            <template #extra><Button size="small" @click="handleExport">导出 CSV</Button></template>
             <div class="flex flex-col gap-3">
               <div v-for="item in byTypeData" :key="item.type" class="flex items-center gap-3">
                 <span class="w-20 flex-none text-sm" style="color: var(--ant-color-text)">{{ item.type }}</span>

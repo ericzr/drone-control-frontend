@@ -1,6 +1,7 @@
 <script lang="ts" setup name="DroneControlOverviewPage">
 import { Page } from '@vben/common-ui';
 
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { Icon } from '@iconify/vue';
@@ -8,13 +9,35 @@ import {
   Badge,
   Card,
   Col,
+  message,
   Progress,
   Row,
+  Skeleton,
+  Space,
   Statistic,
   Tag,
 } from 'ant-design-vue';
 
+function exportCsv(headers: string[], rows: string[][], filename: string) {
+  const bom = '\uFEFF';
+  const csv = bom + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const router = useRouter();
+
+const loading = ref(true);
+onMounted(() => {
+  setTimeout(() => {
+    loading.value = false;
+  }, 600);
+});
 
 const stats = [
   { title: '纳管设备', value: 128, suffix: '台' },
@@ -96,6 +119,20 @@ function nav(path: string) {
   router.push(path);
 }
 
+function handleExportDevices() {
+  exportCsv(
+    ['设备类型', '在线', '总数', '在线率(%)'],
+    deviceOverview.map((d) => [
+      d.label,
+      String(d.online),
+      String(d.total),
+      String(Math.round((d.online / d.total) * 100)),
+    ]),
+    'device_overview.csv',
+  );
+  message.success('设备概览已导出');
+}
+
 function levelColor(level: string) {
   if (level === 'critical') return '#ff4d4f';
   if (level === 'warning') return '#faad14';
@@ -112,13 +149,15 @@ function levelText(level: string) {
 <template>
   <Page>
     <div class="flex flex-col gap-4 p-2">
-      <Row :gutter="[16, 16]">
-        <Col v-for="item in stats" :key="item.title" :lg="6" :md="12" :span="24">
-          <Card :bordered="false">
-            <Statistic :suffix="item.suffix" :title="item.title" :value="item.value" />
-          </Card>
-        </Col>
-      </Row>
+      <Skeleton :loading="loading" active :paragraph="{ rows: 1 }">
+        <Row :gutter="[16, 16]">
+          <Col v-for="item in stats" :key="item.title" :lg="6" :md="12" :span="24">
+            <Card :bordered="false">
+              <Statistic :suffix="item.suffix" :title="item.title" :value="item.value" />
+            </Card>
+          </Col>
+        </Row>
+      </Skeleton>
 
       <Row :gutter="[16, 16]">
         <Col v-for="m in modules" :key="m.key" :lg="8" :md="12" :span="24">
@@ -178,7 +217,10 @@ function levelText(level: string) {
         <Col :lg="8" :span="24">
           <Card :bordered="false" title="设备概览">
             <template #extra>
-              <a class="text-xs" @click="nav('/device/uav')">详情 ></a>
+              <Space>
+                <a class="text-xs" @click="handleExportDevices">导出</a>
+                <a class="text-xs" @click="nav('/device/uav')">详情 ></a>
+              </Space>
             </template>
             <div class="device-list">
               <div v-for="d in deviceOverview" :key="d.label" class="device-item">
@@ -259,6 +301,12 @@ function levelText(level: string) {
   gap: 0;
   border-top: 1px solid var(--ant-color-border-secondary);
   border-left: 1px solid var(--ant-color-border-secondary);
+}
+
+@media (max-width: 768px) {
+  .quick-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .quick-item {
