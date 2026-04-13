@@ -32,10 +32,13 @@ onBeforeUnmount(() => {
 import type { SceneConfig, SceneType } from './scenes';
 
 import AiDetectStats from './components/AiDetectStats.vue';
+import AiQueryPanel from './components/AiQueryPanel.vue';
 import AlertGallery from './components/AlertGallery.vue';
 import DroneMonitor from './components/DroneMonitor.vue';
 import SceneSelector from './components/SceneSelector.vue';
 import StatPanel from './components/StatPanel.vue';
+
+const aiPanelOpen = ref(false);
 import { defaultScene, scenes, sceneList } from './scenes';
 
 const activeScene = ref<SceneType>(defaultScene);
@@ -161,6 +164,16 @@ function summaryColor(type: string) {
         </div>
         <div class="board-header__right">
           <span>{{ currentTime }}</span>
+          <button
+            class="fullscreen-btn"
+            :class="{ 'fullscreen-btn--active': aiPanelOpen }"
+            title="AI 问数"
+            @click="aiPanelOpen = !aiPanelOpen"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
           <button class="fullscreen-btn" :title="isFullscreen ? '退出全屏' : '全屏模式'" @click="toggleFullscreen">
             <svg v-if="!isFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
@@ -261,6 +274,19 @@ function summaryColor(type: string) {
           </div>
         </section>
       </aside>
+
+      <!-- AI Query Panel -->
+      <Transition name="slide-up">
+        <div v-if="aiPanelOpen" class="ai-panel">
+          <div class="ai-panel__header">
+            <span>AI 问数助手</span>
+            <button class="ai-panel__close" @click="aiPanelOpen = false">✕</button>
+          </div>
+          <div class="ai-panel__body">
+            <AiQueryPanel />
+          </div>
+        </div>
+      </Transition>
 
       <!-- Footer -->
       <div class="board-footer">
@@ -573,6 +599,79 @@ function summaryColor(type: string) {
   color: rgb(255 255 255 / 50%);
   font-size: 12px;
   background: linear-gradient(0deg, rgb(10 13 18 / 70%) 0%, transparent 100%);
+}
+
+.fullscreen-btn--active {
+  background: rgb(22 119 255 / 20%);
+  border-color: #1677ff;
+  color: #60a5fa;
+}
+
+/* ── AI panel ── */
+.ai-panel {
+  position: absolute;
+  bottom: 40px;
+  right: 14px;
+  z-index: 20;
+  width: 380px;
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  background: linear-gradient(180deg, rgb(18 19 21 / 0.96) 0%, rgb(22 23 27 / 0.94) 100%);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 40%);
+  overflow: hidden;
+}
+
+.ai-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  color: #f9fafb;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ai-panel__close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(255 255 255 / 40%);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgb(255 255 255 / 8%);
+    color: #f9fafb;
+  }
+}
+
+.ai-panel__body {
+  flex: 1;
+  padding: 12px 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 
 /* ── fullscreen ── */

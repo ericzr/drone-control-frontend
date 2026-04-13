@@ -62,6 +62,36 @@ const deviceOverview = [
   { label: '传感器', total: 30, online: 25 },
 ];
 
+const notifications = [
+  { id: 1, type: 'task', title: '北坡林区巡检任务已分配', time: '10 分钟前', read: false },
+  { id: 2, type: 'alert', title: 'M350-03 电池循环次数达 180 次，建议更换', time: '25 分钟前', read: false },
+  { id: 3, type: 'system', title: '天地图服务证书将于 5 天后过期', time: '1 小时前', read: false },
+  { id: 4, type: 'task', title: '高新区主干道日巡任务已完成', time: '2 小时前', read: true },
+  { id: 5, type: 'alert', title: '林草防火机场温度传感器离线', time: '3 小时前', read: true },
+  { id: 6, type: 'system', title: 'CAAC 证书续期提醒：王芳（PLT-003）', time: '5 小时前', read: false },
+];
+
+const calendarEvents = [
+  { date: 13, items: [{ text: '北坡林区巡检', type: 'task' }, { text: '安全教育培训', type: 'training' }] },
+  { date: 14, items: [{ text: 'M350 新机型培训', type: 'training' }] },
+  { date: 15, items: [{ text: '渭河全段排查', type: 'task' }, { text: 'M300-01 定期保养', type: 'maintenance' }] },
+  { date: 18, items: [{ text: '月度飞行考核', type: 'training' }] },
+  { date: 20, items: [{ text: '安全教育培训', type: 'training' }] },
+  { date: 25, items: [{ text: '夜间红外巡检实操', type: 'training' }, { text: '工业区违建复查', type: 'task' }] },
+];
+
+function notifIcon(type: string) {
+  if (type === 'task') return '📋';
+  if (type === 'alert') return '⚠️';
+  return '🔔';
+}
+
+function calendarTypeColor(type: string) {
+  if (type === 'task') return 'blue';
+  if (type === 'training') return 'green';
+  return 'orange';
+}
+
 function nav(path: string) {
   router.push(path);
 }
@@ -161,6 +191,45 @@ function levelText(level: string) {
                   :show-info="false"
                   size="small"
                 />
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row :gutter="[16, 16]">
+        <Col :lg="12" :span="24">
+          <Card :bordered="false" title="通知中心">
+            <div class="notif-list">
+              <div
+                v-for="n in notifications"
+                :key="n.id"
+                class="notif-item"
+                :class="{ 'notif-item--unread': !n.read }"
+              >
+                <div class="notif-item__head">
+                  <span class="notif-item__title">{{ n.title }}</span>
+                  <span v-if="!n.read" class="notif-item__dot" />
+                </div>
+                <div class="notif-item__time">{{ n.time }}</div>
+              </div>
+            </div>
+          </Card>
+        </Col>
+
+        <Col :lg="12" :span="24">
+          <Card :bordered="false" title="本月日程 · 4 月">
+            <div class="calendar-list">
+              <div v-for="day in calendarEvents" :key="day.date" class="calendar-day">
+                <div class="calendar-day__date">
+                  <span class="calendar-day__num">{{ day.date }}</span>
+                  <span class="calendar-day__label">日</span>
+                </div>
+                <div class="calendar-day__items">
+                  <Tag v-for="(item, i) in day.items" :key="i" :color="calendarTypeColor(item.type)" size="small">
+                    {{ item.text }}
+                  </Tag>
+                </div>
               </div>
             </div>
           </Card>
@@ -281,5 +350,98 @@ function levelText(level: string) {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--ant-color-text-secondary);
+}
+
+/* notification */
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notif-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--ant-color-bg-layout);
+  }
+}
+
+.notif-item--unread {
+  background: var(--ant-color-primary-bg);
+}
+
+.notif-item__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-item__title {
+  font-size: 13px;
+  color: var(--ant-color-text);
+  flex: 1;
+}
+
+.notif-item__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ant-color-primary);
+  flex: none;
+}
+
+.notif-item__time {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ant-color-text-tertiary);
+}
+
+/* calendar */
+.calendar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-day {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.calendar-day__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 36px;
+  flex: none;
+}
+
+.calendar-day__num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ant-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-day__label {
+  font-size: 10px;
+  color: var(--ant-color-text-quaternary);
+}
+
+.calendar-day__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 2px;
 }
 </style>

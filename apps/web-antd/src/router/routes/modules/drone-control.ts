@@ -82,6 +82,15 @@ const routes: RouteRecordRaw[] = [
           import('#/views/wemirr/drone-control/dispatch/imagery/index.vue'),
         meta: { icon: 'mdi:image-search-outline', title: '时空影像' },
       },
+      {
+        path: 'emergency',
+        name: 'DispatchEmergency',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/dispatch/emergency/index.vue'
+          ),
+        meta: { icon: 'mdi:alert-octagon-outline', title: '应急指挥' },
+      },
     ],
   },
 
