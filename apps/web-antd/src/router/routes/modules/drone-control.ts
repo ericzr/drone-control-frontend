@@ -188,6 +188,15 @@ const routes: RouteRecordRaw[] = [
         meta: { icon: 'mdi:map-marker-path', title: '航线规划' },
       },
       {
+        path: 'route-apply',
+        name: 'FlightRouteApply',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/flight/route-apply/index.vue'
+          ),
+        meta: { icon: 'mdi:file-sign', title: '航线申请' },
+      },
+      {
         path: 'plan',
         name: 'FlightPlanManage',
         component: () =>
