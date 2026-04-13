@@ -24,11 +24,15 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   logo: {
     enable: true,
-    source: 'https://docs.battcn.com/favicon.ico',
+    source: '/logo.png',
   },
   copyright: {
-    companyName: 'WEMIRR-PLATFORM',
+    companyName: '大航蜂Drone OS',
     companySiteLink: 'https://docs.battcn.com/',
+  },
+  widget: {
+    languageToggle: false,
+    timezone: false,
   },
   footer: {
     enable: true,
