@@ -145,6 +145,18 @@ const routes: RouteRecordRaw[] = [
           import('#/views/wemirr/drone-control/device/charger/index.vue'),
         meta: { icon: 'mdi:ev-station', title: '充电站管理' },
       },
+      {
+        path: 'detail',
+        name: 'DeviceDetail',
+        component: () =>
+          import('#/views/wemirr/drone-control/device/detail/index.vue'),
+        meta: {
+          hideInMenu: true,
+          icon: 'mdi:file-document-outline',
+          title: '设备详情',
+          activePath: '/device/uav',
+        },
+      },
     ],
   },
 
@@ -252,6 +264,18 @@ const routes: RouteRecordRaw[] = [
         component: () =>
           import('#/views/wemirr/drone-control/event/report/index.vue'),
         meta: { icon: 'mdi:file-chart-outline', title: '事件报告' },
+      },
+      {
+        path: 'detail',
+        name: 'EventDetail',
+        component: () =>
+          import('#/views/wemirr/drone-control/event/detail/index.vue'),
+        meta: {
+          hideInMenu: true,
+          icon: 'mdi:file-document-outline',
+          title: '事件详情',
+          activePath: '/event/list',
+        },
       },
     ],
   },

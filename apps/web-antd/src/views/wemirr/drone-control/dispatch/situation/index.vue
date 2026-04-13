@@ -8,11 +8,18 @@ import {
   Button,
   Card,
   Col,
+  Descriptions,
+  DescriptionsItem,
+  Drawer,
   Dropdown,
+  InputNumber,
   Menu,
   MenuItem,
+  Modal,
   Progress,
   Row,
+  Select,
+  SelectOption,
   Space,
   Statistic,
   Tag,
@@ -135,6 +142,45 @@ function handleSwitchMap(type: string) {
   message.success(`已切换至 ${type} 地图`);
 }
 
+const launchVisible = ref(false);
+const launchAirport = ref('');
+const launchDrone = ref('');
+const launchAlt = ref(120);
+const availableDrones = ['大航蜂 M300-01', '大航蜂 M30T-02', '大航蜂 FP-04', '大航蜂 M30-06'];
+
+function openLaunchModal(ap?: { name: string }) {
+  launchAirport.value = ap?.name || '';
+  launchDrone.value = '';
+  launchAlt.value = 120;
+  launchVisible.value = true;
+}
+
+function confirmLaunch() {
+  if (!launchAirport.value || !launchDrone.value) {
+    message.warning('请选择机场和无人机');
+    return;
+  }
+  launchVisible.value = false;
+  message.success(`已发起起飞指令：${launchDrone.value} → ${launchAirport.value}，高度 ${launchAlt.value}m`);
+}
+
+const detailVisible = ref(false);
+const detailAirport = ref<any>(null);
+const airportEnv = {
+  temperature: '24°C',
+  humidity: '62%',
+  windSpeed: '3.2 m/s',
+  windDir: '东南风',
+  visibility: '8 km',
+  pressure: '1013 hPa',
+};
+
+function openAirportDetail(ap: any) {
+  detailAirport.value = ap;
+  detailVisible.value = true;
+  flyTo(ap.lng, ap.lat, { zoom: 15, duration: 800 });
+}
+
 onMounted(async () => {
   await nextTick();
   await initMap({ center: [108.94, 34.26], zoom: 12 });
@@ -242,12 +288,71 @@ onMounted(async () => {
                   class="mt-1"
                   size="small"
                 />
+                <div class="mt-2 flex gap-2">
+                  <Button size="small" type="link" @click.stop="openAirportDetail(ap)">详情</Button>
+                  <Button size="small" type="primary" ghost @click.stop="openLaunchModal(ap)">一键起飞</Button>
+                </div>
               </div>
             </div>
           </Card>
         </Col>
       </Row>
     </div>
+
+    <!-- Launch Modal -->
+    <Modal v-model:open="launchVisible" title="一键起飞" @ok="confirmLaunch" ok-text="发起起飞" cancel-text="取消">
+      <div class="flex flex-col gap-4 py-2">
+        <div>
+          <div class="mb-1 text-sm" style="color: var(--ant-color-text)">起飞机场</div>
+          <Select v-model:value="launchAirport" style="width: 100%" placeholder="选择机场">
+            <SelectOption v-for="ap in airportList" :key="ap.name" :value="ap.name">{{ ap.name }}</SelectOption>
+          </Select>
+        </div>
+        <div>
+          <div class="mb-1 text-sm" style="color: var(--ant-color-text)">选择无人机</div>
+          <Select v-model:value="launchDrone" style="width: 100%" placeholder="选择无人机">
+            <SelectOption v-for="d in availableDrones" :key="d" :value="d">{{ d }}</SelectOption>
+          </Select>
+        </div>
+        <div>
+          <div class="mb-1 text-sm" style="color: var(--ant-color-text)">起飞高度 (m)</div>
+          <InputNumber v-model:value="launchAlt" :min="10" :max="500" style="width: 100%" />
+        </div>
+      </div>
+    </Modal>
+
+    <!-- Airport Detail Drawer -->
+    <Drawer v-model:open="detailVisible" :title="detailAirport?.name || '机场详情'" width="420" placement="right">
+      <template v-if="detailAirport">
+        <Descriptions bordered :column="1" size="small">
+          <DescriptionsItem label="机场名称">{{ detailAirport.name }}</DescriptionsItem>
+          <DescriptionsItem label="当前状态">
+            <Badge :status="getStatusBadge(detailAirport.status)" :text="detailAirport.status" />
+          </DescriptionsItem>
+          <DescriptionsItem label="绑定无人机">{{ detailAirport.drone }}</DescriptionsItem>
+          <DescriptionsItem label="当前任务">{{ detailAirport.task }}</DescriptionsItem>
+          <DescriptionsItem label="电量">
+            <Progress :percent="detailAirport.battery" size="small" :status="detailAirport.battery < 30 ? 'exception' : 'active'" />
+          </DescriptionsItem>
+          <DescriptionsItem label="利用率">{{ detailAirport.utilization }}%</DescriptionsItem>
+          <DescriptionsItem label="坐标">{{ detailAirport.lng }}, {{ detailAirport.lat }}</DescriptionsItem>
+        </Descriptions>
+
+        <div class="mt-4 mb-2 text-sm font-semibold" style="color: var(--ant-color-text)">环境参数</div>
+        <Descriptions bordered :column="2" size="small">
+          <DescriptionsItem label="温度">{{ airportEnv.temperature }}</DescriptionsItem>
+          <DescriptionsItem label="湿度">{{ airportEnv.humidity }}</DescriptionsItem>
+          <DescriptionsItem label="风速">{{ airportEnv.windSpeed }}</DescriptionsItem>
+          <DescriptionsItem label="风向">{{ airportEnv.windDir }}</DescriptionsItem>
+          <DescriptionsItem label="能见度">{{ airportEnv.visibility }}</DescriptionsItem>
+          <DescriptionsItem label="气压">{{ airportEnv.pressure }}</DescriptionsItem>
+        </Descriptions>
+
+        <div class="mt-4">
+          <Button type="primary" block @click="openLaunchModal(detailAirport)">一键起飞</Button>
+        </div>
+      </template>
+    </Drawer>
   </Page>
 </template>
 
