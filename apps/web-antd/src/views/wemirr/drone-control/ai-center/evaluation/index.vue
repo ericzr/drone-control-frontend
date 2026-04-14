@@ -1,145 +1,343 @@
 <script lang="ts" setup name="AiEvaluationPage">
 import { Page } from '@vben/common-ui';
 
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 import {
+  Badge,
+  Button,
   Card,
   Col,
   Descriptions,
   DescriptionsItem,
+  Progress,
   Row,
   Select,
-  Statistic,
+  SelectOption,
+  Space,
   Table,
+  Tabs,
+  TabPane,
   Tag,
+  message,
 } from 'ant-design-vue';
 
-const selectedModel = ref('drone-det-v11s');
-const modelOptions = [
-  { label: '无人机小目标检测 v11s', value: 'drone-det-v11s' },
-  { label: '车辆违停检测 v8m', value: 'vehicle-det-v8m' },
-  { label: '烟火识别模型', value: 'fire-smoke-det' },
-  { label: '路面损伤分割', value: 'road-damage-seg' },
-  { label: '车牌识别 OCR', value: 'license-plate-ocr' },
+const activeTab = ref('training');
+
+// Training monitor
+const trainingRunning = ref(false);
+const trainingEpoch = ref(0);
+const trainingMaxEpoch = 100;
+let trainTimer: number | undefined;
+
+const lossHistory = ref<number[]>([]);
+const mapHistory = ref<number[]>([]);
+
+function startTraining() {
+  trainingRunning.value = true;
+  trainingEpoch.value = 0;
+  lossHistory.value = [];
+  mapHistory.value = [];
+  message.info('训练已启动');
+
+  trainTimer = window.setInterval(() => {
+    trainingEpoch.value++;
+    const e = trainingEpoch.value;
+    lossHistory.value.push(Number((2.5 * Math.exp(-e * 0.04) + 0.15 + Math.random() * 0.08).toFixed(3)));
+    mapHistory.value.push(Number((0.85 * (1 - Math.exp(-e * 0.05)) + Math.random() * 0.02).toFixed(3)));
+
+    if (trainingEpoch.value >= trainingMaxEpoch) {
+      stopTraining();
+      message.success('训练完成！最终 mAP: ' + mapHistory.value[mapHistory.value.length - 1]);
+    }
+  }, 150);
+}
+
+function stopTraining() {
+  trainingRunning.value = false;
+  if (trainTimer) clearInterval(trainTimer);
+}
+
+onBeforeUnmount(() => { if (trainTimer) clearInterval(trainTimer); });
+
+function svgPath(data: number[], maxVal: number, w: number, h: number): string {
+  if (data.length < 2) return '';
+  return data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - (v / maxVal) * (h - 10) - 5;
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+}
+
+// Evaluation dashboard
+const selectedModel = ref('YOLOv11s-VisDrone');
+const models = ['YOLOv11s-VisDrone', 'YOLOv11m-VisDrone', 'RT-DETR-L', 'Qwen2-VL-7B'];
+
+const evalMetrics = ref({
+  mAP50: 0.847,
+  mAP5095: 0.623,
+  precision: 0.891,
+  recall: 0.812,
+  f1: 0.850,
+  fps: 42,
+  params: '9.4M',
+  flops: '21.5G',
+  latency: '23.8ms',
+});
+
+const classMetrics = [
+  { name: '行人', ap: 0.89, precision: 0.92, recall: 0.85, count: 4280 },
+  { name: '车辆', ap: 0.91, precision: 0.94, recall: 0.88, count: 6120 },
+  { name: '自行车', ap: 0.78, precision: 0.82, recall: 0.74, count: 1850 },
+  { name: '三轮车', ap: 0.72, precision: 0.78, recall: 0.68, count: 920 },
+  { name: '遮阳篷', ap: 0.65, precision: 0.71, recall: 0.60, count: 580 },
+  { name: '公交车', ap: 0.88, precision: 0.91, recall: 0.84, count: 1240 },
+  { name: '卡车', ap: 0.85, precision: 0.89, recall: 0.81, count: 2100 },
 ];
-
-const evalStats = ref([
-  { title: 'mAP@50', value: '42.8%' },
-  { title: 'mAP@50:95', value: '28.3%' },
-  { title: 'Precision', value: '68.5%' },
-  { title: 'Recall', value: '51.2%' },
-  { title: 'FPS', value: '156' },
-  { title: '模型大小', value: '18.5 MB' },
-]);
-
-const classMetrics = ref([
-  { key: '1', className: 'pedestrian', ap50: 38.2, ap5095: 22.1, count: 8844, precision: 62.3, recall: 45.8 },
-  { key: '2', className: 'car', ap50: 58.6, ap5095: 41.2, count: 5985, precision: 78.1, recall: 62.4 },
-  { key: '3', className: 'van', ap50: 32.1, ap5095: 18.6, count: 1469, precision: 55.2, recall: 38.9 },
-  { key: '4', className: 'truck', ap50: 28.5, ap5095: 16.3, count: 750, precision: 48.6, recall: 35.2 },
-  { key: '5', className: 'bus', ap50: 42.3, ap5095: 28.8, count: 251, precision: 65.8, recall: 48.1 },
-  { key: '6', className: 'motor', ap50: 31.8, ap5095: 17.5, count: 2563, precision: 52.4, recall: 39.6 },
-  { key: '7', className: 'bicycle', ap50: 18.9, ap5095: 9.2, count: 1302, precision: 42.1, recall: 28.3 },
-  { key: '8', className: 'awning-tricycle', ap50: 22.4, ap5095: 12.1, count: 532, precision: 45.8, recall: 31.5 },
-  { key: '9', className: 'tricycle', ap50: 34.6, ap5095: 20.8, count: 856, precision: 58.3, recall: 42.7 },
-  { key: '10', className: 'people', ap50: 35.1, ap5095: 21.4, count: 4238, precision: 60.2, recall: 43.9 },
-]);
 
 const classColumns = [
-  { title: '类别', dataIndex: 'className', key: 'className', width: 140 },
-  { title: 'AP@50', dataIndex: 'ap50', key: 'ap50', width: 100 },
-  { title: 'AP@50:95', dataIndex: 'ap5095', key: 'ap5095', width: 110 },
-  { title: '样本数', dataIndex: 'count', key: 'count', width: 100 },
-  { title: 'Precision', dataIndex: 'precision', key: 'precision', width: 110 },
-  { title: 'Recall', dataIndex: 'recall', key: 'recall', width: 100 },
+  { title: '类别', dataIndex: 'name', key: 'name', width: 80 },
+  { title: 'AP', dataIndex: 'ap', key: 'ap', width: 70 },
+  { title: 'Precision', dataIndex: 'precision', key: 'precision', width: 90 },
+  { title: 'Recall', dataIndex: 'recall', key: 'recall', width: 80 },
+  { title: '样本数', dataIndex: 'count', key: 'count', width: 80 },
 ];
 
-const trainHistory = ref([
-  { key: '1', version: 'v1.2.0', epochs: 200, mAP50: 42.8, mAP5095: 28.3, trainTime: '8h 35m', gpu: 'A100 × 1', date: '2026-03-15' },
-  { key: '2', version: 'v1.1.0', epochs: 150, mAP50: 39.5, mAP5095: 25.6, trainTime: '6h 12m', gpu: 'A10 × 1', date: '2026-02-10' },
-  { key: '3', version: 'v1.0.0', epochs: 100, mAP50: 35.2, mAP5095: 22.1, trainTime: '4h 20m', gpu: 'A10 × 1', date: '2026-01-05' },
-]);
+// Version comparison
+const versions = [
+  { ver: 'v3.2', date: '2026-04-10', mAP: 0.847, fps: 42, params: '9.4M', status: '当前' },
+  { ver: 'v3.1', date: '2026-03-28', mAP: 0.831, fps: 40, params: '9.4M', status: '历史' },
+  { ver: 'v3.0', date: '2026-03-15', mAP: 0.815, fps: 38, params: '9.4M', status: '历史' },
+  { ver: 'v2.0', date: '2026-02-20', mAP: 0.782, fps: 35, params: '7.2M', status: '历史' },
+  { ver: 'v1.0', date: '2026-01-10', mAP: 0.721, fps: 30, params: '7.2M', status: '已归档' },
+];
 
-const historyColumns = [
-  { title: '版本', dataIndex: 'version', key: 'version', width: 90 },
-  { title: 'Epochs', dataIndex: 'epochs', key: 'epochs', width: 90 },
-  { title: 'mAP@50', dataIndex: 'mAP50', key: 'mAP50', width: 100 },
-  { title: 'mAP@50:95', dataIndex: 'mAP5095', key: 'mAP5095', width: 110 },
-  { title: '训练时间', dataIndex: 'trainTime', key: 'trainTime', width: 110 },
-  { title: 'GPU', dataIndex: 'gpu', key: 'gpu', width: 110 },
+const versionColumns = [
+  { title: '版本', dataIndex: 'ver', key: 'ver', width: 70 },
   { title: '日期', dataIndex: 'date', key: 'date', width: 110 },
+  { title: 'mAP@50', dataIndex: 'mAP', key: 'mAP', width: 90 },
+  { title: 'FPS', dataIndex: 'fps', key: 'fps', width: 60 },
+  { title: '参数量', dataIndex: 'params', key: 'params', width: 80 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
 ];
+
+function metricColor(val: number) {
+  if (val >= 0.85) return '#52c41a';
+  if (val >= 0.7) return '#1677ff';
+  return '#faad14';
+}
 </script>
 
 <template>
-  <Page :auto-content-height="true">
-    <div class="flex flex-col gap-4 p-2">
-      <Card :bordered="false" title="模型评估报告">
-        <template #extra>
-          <Select
-            v-model:value="selectedModel"
-            :options="modelOptions"
-            style="width: 240px"
-          />
-        </template>
-
-        <Row :gutter="[16, 16]">
-          <Col v-for="item in evalStats" :key="item.title" :lg="4" :md="8" :span="12">
-            <div class="rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-center">
-              <div class="text-sm text-slate-500">{{ item.title }}</div>
-              <div class="mt-1 text-xl font-bold text-slate-800 dark:text-slate-200">{{ item.value }}</div>
+  <Page>
+    <div class="flex flex-col gap-3 p-2">
+      <Tabs v-model:activeKey="activeTab" type="card">
+        <!-- Training Monitor -->
+        <TabPane key="training" tab="训练监控">
+          <Card :bordered="false" size="small">
+            <div class="flex items-center justify-between mb-4">
+              <Space>
+                <Select v-model:value="selectedModel" style="width: 200px" size="small">
+                  <SelectOption v-for="m in models" :key="m" :value="m">{{ m }}</SelectOption>
+                </Select>
+                <Button v-if="!trainingRunning" type="primary" size="small" @click="startTraining">开始训练</Button>
+                <Button v-else size="small" danger @click="stopTraining">停止训练</Button>
+              </Space>
+              <div class="text-sm" style="color: var(--ant-color-text-tertiary)">
+                Epoch: {{ trainingEpoch }} / {{ trainingMaxEpoch }}
+              </div>
             </div>
-          </Col>
-        </Row>
-      </Card>
 
-      <Row :gutter="[16, 16]">
-        <Col :xl="14" :span="24">
-          <Card :bordered="false" title="各类别评估指标">
-            <Table
-              :columns="classColumns"
-              :data-source="classMetrics"
-              :pagination="false"
-              row-key="key"
-              size="small"
-            />
+            <Progress :percent="Math.round((trainingEpoch / trainingMaxEpoch) * 100)" :status="trainingRunning ? 'active' : 'normal'" />
+
+            <Row :gutter="[16, 16]" class="mt-4">
+              <Col :span="12">
+                <Card size="small" title="Loss 曲线" :bordered="false" class="chart-card">
+                  <svg viewBox="0 0 400 150" class="train-chart">
+                    <path v-if="lossHistory.length >= 2" :d="svgPath(lossHistory, 3, 400, 150)" fill="none" stroke="#ef4444" stroke-width="2" />
+                    <text x="5" y="15" fill="rgba(255,255,255,0.3)" font-size="10">Loss</text>
+                    <text v-if="lossHistory.length" x="370" :y="145" fill="rgba(255,255,255,0.5)" font-size="11" text-anchor="end">
+                      {{ lossHistory[lossHistory.length - 1] }}
+                    </text>
+                  </svg>
+                </Card>
+              </Col>
+              <Col :span="12">
+                <Card size="small" title="mAP 曲线" :bordered="false" class="chart-card">
+                  <svg viewBox="0 0 400 150" class="train-chart">
+                    <path v-if="mapHistory.length >= 2" :d="svgPath(mapHistory, 1, 400, 150)" fill="none" stroke="#1677ff" stroke-width="2" />
+                    <text x="5" y="15" fill="rgba(255,255,255,0.3)" font-size="10">mAP@50</text>
+                    <text v-if="mapHistory.length" x="370" :y="145" fill="rgba(255,255,255,0.5)" font-size="11" text-anchor="end">
+                      {{ mapHistory[mapHistory.length - 1] }}
+                    </text>
+                  </svg>
+                </Card>
+              </Col>
+            </Row>
+
+            <Row :gutter="[16, 16]" class="mt-3">
+              <Col :span="6">
+                <Card size="small" :bordered="false" class="metric-mini">
+                  <div class="metric-mini__val">{{ lossHistory.length ? lossHistory[lossHistory.length - 1] : '-' }}</div>
+                  <div class="metric-mini__label">当前 Loss</div>
+                </Card>
+              </Col>
+              <Col :span="6">
+                <Card size="small" :bordered="false" class="metric-mini">
+                  <div class="metric-mini__val">{{ mapHistory.length ? mapHistory[mapHistory.length - 1] : '-' }}</div>
+                  <div class="metric-mini__label">当前 mAP</div>
+                </Card>
+              </Col>
+              <Col :span="6">
+                <Card size="small" :bordered="false" class="metric-mini">
+                  <div class="metric-mini__val">{{ trainingEpoch }}</div>
+                  <div class="metric-mini__label">Epoch</div>
+                </Card>
+              </Col>
+              <Col :span="6">
+                <Card size="small" :bordered="false" class="metric-mini">
+                  <div class="metric-mini__val">0.001</div>
+                  <div class="metric-mini__label">学习率</div>
+                </Card>
+              </Col>
+            </Row>
           </Card>
-        </Col>
+        </TabPane>
 
-        <Col :xl="10" :span="24">
-          <Card :bordered="false" title="模型基本信息">
-            <Descriptions :column="1" bordered size="small">
-              <DescriptionsItem label="模型标识">drone-det-v11s</DescriptionsItem>
-              <DescriptionsItem label="框架">
-                <Tag color="blue">YOLOv11</Tag>
-              </DescriptionsItem>
-              <DescriptionsItem label="数据集">VisDrone 2019</DescriptionsItem>
-              <DescriptionsItem label="训练集">6471 张</DescriptionsItem>
-              <DescriptionsItem label="验证集">548 张</DescriptionsItem>
-              <DescriptionsItem label="测试集">1610 张</DescriptionsItem>
-              <DescriptionsItem label="输入尺寸">640 × 640</DescriptionsItem>
-              <DescriptionsItem label="类别数">10</DescriptionsItem>
-              <DescriptionsItem label="权重文件">best.pt (18.5 MB)</DescriptionsItem>
-              <DescriptionsItem label="导出格式">
-                <Tag>PyTorch</Tag>
-                <Tag>ONNX</Tag>
-                <Tag>TensorRT</Tag>
-              </DescriptionsItem>
-            </Descriptions>
+        <!-- Evaluation Dashboard -->
+        <TabPane key="evaluation" tab="评估仪表盘">
+          <Row :gutter="[16, 16]">
+            <Col :lg="16" :span="24">
+              <Card :bordered="false" size="small" title="核心指标">
+                <Row :gutter="[16, 16]">
+                  <Col :span="8">
+                    <div class="eval-gauge">
+                      <svg viewBox="0 0 120 70" class="gauge-svg">
+                        <path d="M10,65 A50,50 0 0,1 110,65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round" />
+                        <path d="M10,65 A50,50 0 0,1 110,65" fill="none" :stroke="metricColor(evalMetrics.mAP50)" stroke-width="8" stroke-linecap="round" :stroke-dasharray="`${evalMetrics.mAP50 * 157} 157`" />
+                        <text x="60" y="55" text-anchor="middle" fill="#f9fafb" font-size="18" font-weight="800">{{ (evalMetrics.mAP50 * 100).toFixed(1) }}%</text>
+                        <text x="60" y="68" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">mAP@50</text>
+                      </svg>
+                    </div>
+                  </Col>
+                  <Col :span="8">
+                    <div class="eval-gauge">
+                      <svg viewBox="0 0 120 70" class="gauge-svg">
+                        <path d="M10,65 A50,50 0 0,1 110,65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round" />
+                        <path d="M10,65 A50,50 0 0,1 110,65" fill="none" :stroke="metricColor(evalMetrics.precision)" stroke-width="8" stroke-linecap="round" :stroke-dasharray="`${evalMetrics.precision * 157} 157`" />
+                        <text x="60" y="55" text-anchor="middle" fill="#f9fafb" font-size="18" font-weight="800">{{ (evalMetrics.precision * 100).toFixed(1) }}%</text>
+                        <text x="60" y="68" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">Precision</text>
+                      </svg>
+                    </div>
+                  </Col>
+                  <Col :span="8">
+                    <div class="eval-gauge">
+                      <svg viewBox="0 0 120 70" class="gauge-svg">
+                        <path d="M10,65 A50,50 0 0,1 110,65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round" />
+                        <path d="M10,65 A50,50 0 0,1 110,65" fill="none" :stroke="metricColor(evalMetrics.recall)" stroke-width="8" stroke-linecap="round" :stroke-dasharray="`${evalMetrics.recall * 157} 157`" />
+                        <text x="60" y="55" text-anchor="middle" fill="#f9fafb" font-size="18" font-weight="800">{{ (evalMetrics.recall * 100).toFixed(1) }}%</text>
+                        <text x="60" y="68" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="9">Recall</text>
+                      </svg>
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+
+              <Card :bordered="false" size="small" title="各类别评估" class="mt-3">
+                <Table :columns="classColumns" :data-source="classMetrics" :pagination="false" size="small" row-key="name">
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'ap'">
+                      <span :style="{ color: metricColor(record.ap) }">{{ record.ap }}</span>
+                    </template>
+                  </template>
+                </Table>
+              </Card>
+            </Col>
+
+            <Col :lg="8" :span="24">
+              <Card :bordered="false" size="small" title="模型参数">
+                <Descriptions :column="1" size="small" bordered>
+                  <DescriptionsItem label="mAP@50">{{ evalMetrics.mAP50 }}</DescriptionsItem>
+                  <DescriptionsItem label="mAP@50:95">{{ evalMetrics.mAP5095 }}</DescriptionsItem>
+                  <DescriptionsItem label="F1 Score">{{ evalMetrics.f1 }}</DescriptionsItem>
+                  <DescriptionsItem label="FPS">{{ evalMetrics.fps }}</DescriptionsItem>
+                  <DescriptionsItem label="参数量">{{ evalMetrics.params }}</DescriptionsItem>
+                  <DescriptionsItem label="FLOPs">{{ evalMetrics.flops }}</DescriptionsItem>
+                  <DescriptionsItem label="推理延迟">{{ evalMetrics.latency }}</DescriptionsItem>
+                </Descriptions>
+              </Card>
+            </Col>
+          </Row>
+        </TabPane>
+
+        <!-- Version Comparison -->
+        <TabPane key="versions" tab="版本对比">
+          <Card :bordered="false" size="small" title="模型版本历史">
+            <Table :columns="versionColumns" :data-source="versions" :pagination="false" size="small" row-key="ver">
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'mAP'">
+                  <span :style="{ color: metricColor(record.mAP), fontWeight: 700 }">{{ record.mAP }}</span>
+                </template>
+                <template v-if="column.key === 'status'">
+                  <Tag :color="record.status === '当前' ? 'blue' : record.status === '历史' ? 'default' : 'orange'" size="small">{{ record.status }}</Tag>
+                </template>
+              </template>
+            </Table>
           </Card>
-        </Col>
-      </Row>
 
-      <Card :bordered="false" title="训练历史对比">
-        <Table
-          :columns="historyColumns"
-          :data-source="trainHistory"
-          :pagination="false"
-          row-key="key"
-          size="small"
-        />
-      </Card>
+          <Card :bordered="false" size="small" title="mAP 版本趋势" class="mt-3">
+            <svg viewBox="0 0 400 120" class="version-chart">
+              <line v-for="i in 5" :key="i" x1="0" :y1="i * 24" x2="400" :y2="i * 24" stroke="rgba(255,255,255,0.04)" />
+              <polyline :points="versions.slice().reverse().map((v, i) => `${i * 100 + 20},${110 - v.mAP * 120}`).join(' ')" fill="none" stroke="#1677ff" stroke-width="2" />
+              <circle v-for="(v, i) in versions.slice().reverse()" :key="v.ver" :cx="i * 100 + 20" :cy="110 - v.mAP * 120" r="4" fill="#1677ff" />
+              <text v-for="(v, i) in versions.slice().reverse()" :key="'t' + v.ver" :x="i * 100 + 20" y="118" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="10">{{ v.ver }}</text>
+            </svg>
+          </Card>
+        </TabPane>
+      </Tabs>
     </div>
   </Page>
 </template>
+
+<style lang="less" scoped>
+.chart-card {
+  background: var(--ant-color-bg-layout);
+}
+
+.train-chart {
+  width: 100%;
+  height: 120px;
+}
+
+.metric-mini {
+  text-align: center;
+  background: var(--ant-color-bg-layout);
+}
+
+.metric-mini__val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ant-color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-mini__label {
+  font-size: 11px;
+  color: var(--ant-color-text-tertiary);
+  margin-top: 2px;
+}
+
+.eval-gauge {
+  text-align: center;
+}
+
+.gauge-svg {
+  width: 100%;
+  max-width: 140px;
+}
+
+.version-chart {
+  width: 100%;
+  height: 120px;
+}
+</style>

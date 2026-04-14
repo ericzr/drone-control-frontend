@@ -83,6 +83,15 @@ const routes: RouteRecordRaw[] = [
         meta: { icon: 'mdi:image-search-outline', title: '时空影像' },
       },
       {
+        path: 'resource',
+        name: 'DispatchResource',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/dispatch/resource/index.vue'
+          ),
+        meta: { icon: 'mdi:account-group-outline', title: '资源调度' },
+      },
+      {
         path: 'emergency',
         name: 'DispatchEmergency',
         component: () =>
@@ -449,6 +458,34 @@ const routes: RouteRecordRaw[] = [
             '#/views/wemirr/drone-control/ai-center/marketplace/index.vue'
           ),
         meta: { icon: 'mdi:store-outline', title: '算法商城' },
+      },
+    ],
+  },
+
+  {
+    component: BasicLayout,
+    path: '/data-screen',
+    name: 'DroneDataScreen',
+    redirect: '/data-screen/index',
+    meta: {
+      hideChildrenInMenu: true,
+      icon: 'mdi:monitor-dashboard',
+      order: 118,
+      title: '数据驾驶舱',
+    },
+    children: [
+      {
+        path: 'index',
+        name: 'DataScreenIndex',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/data-screen/index.vue'
+          ),
+        meta: {
+          hideInMenu: true,
+          icon: 'mdi:monitor-dashboard',
+          title: '数据驾驶舱',
+        },
       },
     ],
   },

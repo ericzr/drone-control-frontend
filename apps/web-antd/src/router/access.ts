@@ -27,6 +27,7 @@ const LOCAL_APPEND_ROUTE_NAMES = new Set([
   'DroneGeoData',
   'DroneSettings',
   'DroneAiCenter',
+  'DroneDataScreen',
 ]);
 
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
