@@ -1,7 +1,8 @@
 <script lang="ts" setup name="DroneEventCenterPage">
 import { Page } from '@vben/common-ui';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   Alert,
@@ -23,13 +24,27 @@ import {
   message,
 } from 'ant-design-vue';
 
+import {
+  createWorkorderFromEvent,
+  getClosureEventByNoOrId,
+  listClosureEvents,
+  listClosureWorkorders,
+  submitEventReview,
+  upsertClosureEvent,
+  useEventClosureVersion,
+} from '../_services/event-closure-store';
+import EventContextBar from '../components/EventContextBar.vue';
+import { matchesEventSource } from '../composables/use-event-context';
+
 interface EventAlertItem {
   key: string;
+  eventNo: string;
   title: string;
   type: string;
   level: string;
   status: string;
   confidence: number;
+  scene: string;
   region: string;
   source: string;
   linkedTask: string;
@@ -41,39 +56,14 @@ interface EventAlertItem {
   suggestion: string;
   workOrderStatus: string;
   reviewConclusion: string;
+  relatedWorkorderId?: string;
+  workorderEvidenceCount: number;
+  closureSummary?: string;
 }
 
-const stats = [
-  { title: '今日告警', value: 29, suffix: '条' },
-  { title: '待人工复核', value: 11, suffix: '条' },
-  { title: '已生成工单', value: 8, suffix: '单' },
-  { title: '平均响应时长', value: 14, suffix: '分钟' },
-];
-
-const workflows = [
-  {
-    title: 'AI 告警复核',
-    tags: ['确认', '驳回', '修正'],
-    description: '支持查看识别证据、位置、类型和置信度，完成人工复核闭环。',
-  },
-  {
-    title: '工单联动',
-    tags: ['派单', '督办', '转派'],
-    description: '将确认告警转为工单，联动现场处置与回传，生成处置留痕。',
-  },
-  {
-    title: '事件留痕',
-    tags: ['轨迹', '图片', '视频'],
-    description: '保留从识别、调度到处置的完整链路，用于追溯和报告导出。',
-  },
-];
-
-const regionOptions = [
-  { label: '全部区域', value: '全部区域' },
-  { label: '高新区北片', value: '高新区北片' },
-  { label: '生态园区', value: '生态园区' },
-  { label: '林草防火区', value: '林草防火区' },
-];
+const route = useRoute();
+const router = useRouter();
+const closureStoreVersion = useEventClosureVersion();
 
 const levelOptions = [
   { label: '全部等级', value: '全部等级' },
@@ -85,10 +75,11 @@ const levelOptions = [
 const statusOptions = [
   { label: '全部状态', value: '全部状态' },
   { label: '待复核', value: '待复核' },
-  { label: '复核中', value: '复核中' },
   { label: '已确认', value: '已确认' },
-  { label: '已驳回', value: '已驳回' },
-  { label: '待修正', value: '待修正' },
+  { label: '已派单', value: '已派单' },
+  { label: '处置中', value: '处置中' },
+  { label: '已闭环', value: '已闭环' },
+  { label: '误报', value: '误报' },
 ];
 
 const eventColumns = [
@@ -103,100 +94,219 @@ const eventColumns = [
   { title: '操作', dataIndex: 'action', key: 'action', width: 200 },
 ];
 
-const eventAlerts = ref<EventAlertItem[]>([
-  {
-    key: 'E1',
-    title: '疑似烟雾告警',
-    type: '烟火识别',
-    level: '高',
-    status: '待复核',
-    confidence: 92,
-    region: '林草防火区',
-    source: 'YOLOv11 小目标检测模型',
-    linkedTask: '林草防火热成像巡检',
-    linkedAirport: '林草防火机场',
-    location: '林草防火区 3 号网格',
-    discoveredAt: '2026-04-13 15:04:18',
-    assignee: '应急值守席',
-    evidence: ['热成像烟点轮廓', '可见光低空图传', '调度中心应急核查建议'],
-    suggestion: '建议优先调用林草防火机场最近机组，执行红外复核并回传现场视频。',
-    workOrderStatus: '待生成',
-    reviewConclusion: '等待人工确认是否存在持续烟点。',
-  },
-  {
-    key: 'E2',
-    title: '水面漂浮物告警',
-    type: '河道异常',
-    level: '中',
-    status: '复核中',
-    confidence: 78,
-    region: '生态园区',
-    source: '边缘识别节点 + 人工规则',
-    linkedTask: '沿河排污口核查',
-    linkedAirport: '生态园区机场',
-    location: '沿河西路 2 公里处',
-    discoveredAt: '2026-04-13 14:57:09',
-    assignee: '生态巡检席',
-    evidence: ['局部漂浮物聚集截图', '上次核查工单定位点', '航线悬停抓拍结果'],
-    suggestion: '建议生成补充核查工单，并通知现场人员核实污染来源。',
-    workOrderStatus: '处理中',
-    reviewConclusion: '需补充一组近距离图像后确认污染类型。',
-  },
-  {
-    key: 'E3',
-    title: '违停识别告警',
-    type: '城市治理',
-    level: '中',
-    status: '已确认',
-    confidence: 83,
-    region: '高新区北片',
-    source: '路面治理识别模型',
-    linkedTask: '高新区主干道巡查',
-    linkedAirport: '高新区一号机场',
-    location: '高新区创业大道',
-    discoveredAt: '2026-04-13 14:51:42',
-    assignee: '综合治理席',
-    evidence: ['路口高清抓拍', '巡查任务追加盘旋截图', '违停热区统计点位'],
-    suggestion: '建议直接转派城管处置工单，保留调度过程图像作为证据。',
-    workOrderStatus: '已派单',
-    reviewConclusion: '已确认为违停事件，等待现场处置回执。',
-  },
-  {
-    key: 'E4',
-    title: '防护网破损告警',
-    type: '设施异常',
-    level: '低',
-    status: '待修正',
-    confidence: 64,
-    region: '高新区北片',
-    source: '设施巡检识别模型',
-    linkedTask: '高新区园区围界巡检',
-    linkedAirport: '高新区一号机场',
-    location: '园区围界西南角',
-    discoveredAt: '2026-04-13 14:39:21',
-    assignee: '设施巡检席',
-    evidence: ['围界近景图', '模型框选结果', '历史同点位照片'],
-    suggestion: '建议调整标注类型后重新入库，并安排二次巡检复核。',
-    workOrderStatus: '未生成',
-    reviewConclusion: '当前识别框偏移，需要人工修正事件类型。',
-  },
-]);
-
 const selectedRegion = ref('全部区域');
 const selectedLevel = ref('全部等级');
 const selectedStatus = ref('全部状态');
 const detailOpen = ref(false);
-const selectedEventKey = ref(eventAlerts.value[0]?.key ?? '');
+const selectedEventKey = ref('');
+
+const selectedScene = computed(() => (route.query.scene as string) || 'all');
+const selectedSource = computed(() => (route.query.source as string) || 'all');
+
+function parseDateTime(input: string) {
+  return new Date(input.replace(/-/g, '/'));
+}
+
+function formatDateTime(date = new Date()) {
+  return date.toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
+}
+
+function toLevelLabel(level: string) {
+  if (level === '重大') return '高';
+  if (level === '较大') return '中';
+  return '低';
+}
+
+function getWorkorderStatusLabel(status?: number) {
+  return ['待指派', '待处置', '处置中', '待复核', '已归档'][status ?? -1] || '待生成';
+}
+
+function buildReviewConclusion(
+  reviewResult?: string,
+  reviewRemark?: string,
+  closureSummary?: string,
+) {
+  if (closureSummary) return closureSummary;
+  if (reviewRemark) return reviewRemark;
+  if (reviewResult) return reviewResult;
+  return '等待人工复核给出结论。';
+}
+
+function buildEvidence(
+  reviewRemark: string | undefined,
+  evidences: { summary: string; title: string }[],
+  closureSummary?: string,
+) {
+  const items = [
+    ...evidences.map((item) => item.summary || item.title),
+    ...(reviewRemark ? [`复核备注：${reviewRemark}`] : []),
+    ...(closureSummary ? [`闭环摘要：${closureSummary}`] : []),
+  ].filter(Boolean);
+
+  return items.length > 0 ? items : ['待补充现场图像、视频或文本说明'];
+}
+
+function buildSuggestion(item: {
+  scene: string;
+  status: string;
+  region: string;
+  relatedWorkorderId?: string;
+}) {
+  if (item.status === '待复核') {
+    return `建议优先对 ${item.scene} 场景进行人工复核，并确认 ${item.region} 点位是否需要派单。`;
+  }
+  if (item.relatedWorkorderId) {
+    return `已生成联动工单 ${item.relatedWorkorderId}，建议持续跟踪现场回传与闭环摘要。`;
+  }
+  if (item.status === '误报') {
+    return '当前事件已判定为误报，建议进入误报样本池，用于后续模型优化。';
+  }
+  return `建议围绕 ${item.scene} 场景补充证据与处置留痕，形成可导出的闭环链路。`;
+}
+
+function getDefaultAssignee(scene: string) {
+  if (scene.includes('森林')) return '林区处置组';
+  if (scene.includes('交通')) return '交管联动组';
+  if (scene.includes('环境') || scene.includes('水域')) return '生态巡检组';
+  return '综合处置组';
+}
+
+const closureEvents = computed(() => {
+  closureStoreVersion.value;
+  return listClosureEvents().sort((left, right) => {
+    return (
+      parseDateTime(right.eventTime || right.createTime).getTime() -
+      parseDateTime(left.eventTime || left.createTime).getTime()
+    );
+  });
+});
+
+const closureWorkorders = computed(() => {
+  closureStoreVersion.value;
+  return listClosureWorkorders();
+});
+
+const workorderMap = computed(() => {
+  return new Map(closureWorkorders.value.map((item) => [item.eventId, item]));
+});
+
+const regionOptions = computed(() => {
+  const options = closureEvents.value.map((item) => item.region);
+  return [
+    { label: '全部区域', value: '全部区域' },
+    ...[...new Set(options)].map((item) => ({ label: item, value: item })),
+  ];
+});
+
+const eventAlerts = computed<EventAlertItem[]>(() => {
+  return closureEvents.value.map((item) => {
+    const workorder = workorderMap.value.get(item.eventNo);
+    return {
+      key: item.eventNo,
+      eventNo: item.eventNo,
+      title: `${item.eventType}事件`,
+      type: item.eventType,
+      level: toLevelLabel(item.level),
+      status: item.status,
+      confidence: item.confidence,
+      scene: item.scene,
+      region: item.region,
+      source: item.source,
+      linkedTask: `${item.scene}联动任务`,
+      linkedAirport: item.sourceDrone || `${item.region}值守单元`,
+      location: item.location,
+      discoveredAt: item.eventTime || item.createTime,
+      assignee: workorder?.assignee || item.reviewer || '待分配',
+      evidence: buildEvidence(item.reviewRemark, workorder?.evidences || [], workorder?.closureSummary),
+      suggestion: buildSuggestion(item),
+      workOrderStatus: getWorkorderStatusLabel(workorder?.status),
+      reviewConclusion: buildReviewConclusion(
+        item.reviewResult,
+        item.reviewRemark,
+        workorder?.closureSummary,
+      ),
+      relatedWorkorderId: workorder?.id,
+      workorderEvidenceCount: workorder?.evidences.length || 0,
+      closureSummary: workorder?.closureSummary,
+    };
+  });
+});
+
+const stats = computed(() => {
+  const events = closureEvents.value;
+  const workorders = closureWorkorders.value;
+  return [
+    { title: '累计事件', value: events.length, suffix: '件' },
+    {
+      title: '待人工复核',
+      value: events.filter((item) => item.status === '待复核').length,
+      suffix: '件',
+    },
+    {
+      title: '运行中工单',
+      value: workorders.filter((item) => item.status < 4).length,
+      suffix: '单',
+    },
+    {
+      title: 'AI 来源事件',
+      value: events.filter((item) => item.source.includes('AI')).length,
+      suffix: '件',
+    },
+  ];
+});
+
+const workflows = computed(() => {
+  const pendingReview = closureEvents.value.filter((item) => item.status === '待复核').length;
+  const activeWorkorders = closureWorkorders.value.filter((item) => item.status < 4).length;
+  const evidenceCount = closureWorkorders.value.reduce(
+    (total, item) => total + item.evidences.length,
+    0,
+  );
+  return [
+    {
+      title: '复核池看板',
+      tags: [`待复核 ${pendingReview} 件`, '确认', '误报', '补证'],
+      description: '首页直接读取共享事件会话，适合值班席快速锁定待复核事件。',
+    },
+    {
+      title: '工单联动',
+      tags: [`运行中 ${activeWorkorders} 单`, '派单', '督办', '回执'],
+      description: '复核后的事件可直接生成工单，并同步进入工单详情与处置链路。',
+    },
+    {
+      title: '闭环留痕',
+      tags: [`证据 ${evidenceCount} 份`, '图片', '视频', '摘要'],
+      description: '工单证据、闭环摘要与报告页共享同一份状态源，便于演示与汇报。',
+    },
+  ];
+});
+
+const closureStats = computed(() => {
+  const events = closureEvents.value;
+  const workorders = closureWorkorders.value;
+  return [
+    { title: '闭环事件', value: events.filter((item) => item.status === '已闭环').length, suffix: '件' },
+    { title: '误报样本', value: events.filter((item) => item.status === '误报').length, suffix: '件' },
+    {
+      title: '处置证据',
+      value: workorders.reduce((total, item) => total + item.evidences.length, 0),
+      suffix: '份',
+    },
+    { title: '已归档工单', value: workorders.filter((item) => item.status === 4).length, suffix: '单' },
+  ];
+});
 
 const filteredEventAlerts = computed(() => {
   return eventAlerts.value.filter((item) => {
+    const matchScene = selectedScene.value === 'all' || item.scene === selectedScene.value;
+    const matchSource = matchesEventSource(item.source, selectedSource.value);
     const matchRegion =
       selectedRegion.value === '全部区域' || item.region === selectedRegion.value;
     const matchLevel =
       selectedLevel.value === '全部等级' || item.level === selectedLevel.value;
     const matchStatus =
       selectedStatus.value === '全部状态' || item.status === selectedStatus.value;
-    return matchRegion && matchLevel && matchStatus;
+    return matchScene && matchSource && matchRegion && matchLevel && matchStatus;
   });
 });
 
@@ -208,12 +318,22 @@ const selectedEvent = computed(() => {
   );
 });
 
+watch(
+  filteredEventAlerts,
+  (list) => {
+    if (list.some((item) => item.key === selectedEventKey.value)) return;
+    selectedEventKey.value = list[0]?.key || '';
+  },
+  { immediate: true },
+);
+
 const reviewProgress = computed(() => {
   const status = selectedEvent.value?.status;
+  if (status === '已闭环') return 100;
+  if (status === '处置中') return 82;
+  if (status === '已派单') return 68;
   if (status === '已确认') return 100;
-  if (status === '复核中') return 70;
-  if (status === '待修正') return 55;
-  if (status === '已驳回') return 100;
+  if (status === '误报') return 100;
   return 30;
 });
 
@@ -231,7 +351,7 @@ const reviewSteps = computed(() => {
       color: 'gold',
       title: '调度联动核查',
       description: current
-        ? `联动 ${current.linkedAirport} / ${current.linkedTask}`
+        ? `${current.scene} · ${current.linkedAirport} / ${current.linkedTask}`
         : '等待调度关联',
     },
     {
@@ -243,7 +363,7 @@ const reviewSteps = computed(() => {
       color: 'purple',
       title: '工单归档留痕',
       description: current
-        ? `工单状态：${current.workOrderStatus}`
+        ? `工单状态：${current.workOrderStatus} · 证据 ${current.workorderEvidenceCount} 份`
         : '待工单联动',
     },
   ];
@@ -256,7 +376,7 @@ const reviewSuggestions = computed(() => {
   return [
     `建议由 ${current.assignee} 完成人工复核`,
     current.suggestion,
-    `当前工单状态为 ${current.workOrderStatus}`,
+    `${current.scene} 场景当前工单状态为 ${current.workOrderStatus}`,
   ];
 });
 
@@ -267,82 +387,121 @@ function getLevelColor(level: string) {
 }
 
 function getStatusColor(status: string) {
+  if (status === '已闭环') return 'green';
+  if (status === '已派单') return 'processing';
+  if (status === '处置中') return 'cyan';
   if (status === '已确认') return 'green';
-  if (status === '复核中') return 'cyan';
-  if (status === '待修正') return 'gold';
-  if (status === '已驳回') return 'default';
+  if (status === '误报') return 'default';
   return 'orange';
 }
 
 function getWorkOrderColor(status: string) {
-  if (status === '已派单') return 'green';
+  if (status === '已归档') return 'green';
+  if (status === '待复核') return 'gold';
   if (status === '处理中') return 'processing';
+  if (status === '处置中') return 'cyan';
+  if (status === '待处置') return 'blue';
+  if (status === '待指派') return 'orange';
   if (status === '待生成') return 'orange';
   return 'default';
 }
 
 function openEventDetail(eventKey: string) {
+  if (!eventKey) return;
   selectedEventKey.value = eventKey;
   detailOpen.value = true;
 }
 
-function updateEventStatus(
-  status: EventAlertItem['status'],
-  workOrderStatus: EventAlertItem['workOrderStatus'],
-  reviewConclusion: EventAlertItem['reviewConclusion'],
-  successMessage: string,
-) {
-  const index = eventAlerts.value.findIndex((item) => item.key === selectedEventKey.value);
-  if (index === -1) return;
-
-  eventAlerts.value[index] = {
-    ...eventAlerts.value[index],
-    status,
-    workOrderStatus,
-    reviewConclusion,
-  };
-
-  message.success(successMessage);
+function getSelectedClosureEvent() {
+  if (!selectedEventKey.value) return null;
+  return getClosureEventByNoOrId(selectedEventKey.value);
 }
 
 function confirmEvent() {
-  updateEventStatus(
-    '已确认',
-    '已派单',
-    '人工复核通过，事件已确认并转派处置工单。',
-    '事件已确认，并已同步生成处置工单',
-  );
+  const current = getSelectedClosureEvent();
+  if (!current) {
+    message.warning('当前没有可操作的事件');
+    return;
+  }
+  submitEventReview({
+    eventNo: current.eventNo,
+    reviewer: '值班长',
+    reviewResult: '确认有效',
+    reviewRemark: current.relatedWorkorderId
+      ? '首页快捷确认，继续跟踪处置回执。'
+      : '首页快捷确认，等待创建联动工单。',
+  });
+  message.success('事件已确认，状态已同步到复核与工单链路');
 }
 
 function rejectEvent() {
-  updateEventStatus(
-    '已驳回',
-    '未生成',
-    '人工复核判定为误报，事件已驳回归档。',
-    '事件已驳回，当前告警将进入误报样本池',
-  );
+  const current = getSelectedClosureEvent();
+  if (!current) {
+    message.warning('当前没有可操作的事件');
+    return;
+  }
+  submitEventReview({
+    eventNo: current.eventNo,
+    reviewer: '值班长',
+    reviewResult: '误报排除',
+    reviewRemark: '首页快捷驳回，已转入误报样本池。',
+  });
+  message.success('事件已驳回，误报样本已写入共享会话');
 }
 
 function correctEvent() {
-  updateEventStatus(
-    '待修正',
-    '未生成',
-    '当前事件需要修正识别类型和证据标签后再确认。',
-    '事件已转入修正流程，等待补充修正信息',
-  );
+  const current = getSelectedClosureEvent();
+  if (!current) {
+    message.warning('当前没有可操作的事件');
+    return;
+  }
+  upsertClosureEvent({
+    ...current,
+    reviewer: '值班长',
+    reviewResult: '待补充复核',
+    reviewRemark: '首页已标记为待补充图像与类型修正，请补充后再次确认。',
+    reviewTime: formatDateTime(),
+    status: '待复核',
+  });
+  message.success('事件已标记为待补充复核，等待补证后再次确认');
 }
 
 function createWorkOrder() {
-  updateEventStatus(
-    selectedEvent.value?.status === '待复核' ? '复核中' : selectedEvent.value?.status || '复核中',
-    '处理中',
-    '已发起工单联动，等待现场处置反馈。',
-    '已创建联动工单，并同步到处置队列',
-  );
+  const current = getSelectedClosureEvent();
+  if (!current) {
+    message.warning('当前没有可操作的事件');
+    return;
+  }
+  if (current.status === '误报') {
+    message.warning('误报事件不能转派工单');
+    return;
+  }
+  if (current.relatedWorkorderId) {
+    message.info('当前事件已生成联动工单，正在打开工单详情');
+    router.push(`/event/workorder-detail?id=${current.relatedWorkorderId}`);
+    return;
+  }
+  const workorder = createWorkorderFromEvent({
+    eventNo: current.eventNo,
+    priority:
+      current.level === '重大'
+        ? '一级'
+        : current.level === '较大'
+          ? '二级'
+          : '三级',
+    assignee: getDefaultAssignee(current.scene),
+    note: `${current.scene} 场景事件联动处置，需补充现场证据并回写闭环摘要。`,
+  });
+  if (!workorder) {
+    message.error('工单创建失败，请稍后再试');
+    return;
+  }
+  message.success(`已创建联动工单 ${workorder.id}`);
+  router.push(`/event/workorder-detail?id=${workorder.id}`);
 }
 
 function refreshEventBoard() {
-  message.success('事件中心数据已刷新，当前仍为演示数据');
+  message.success('事件中心态势已刷新，当前页面已与共享闭环状态同步');
 }
 </script>
 
@@ -350,11 +509,13 @@ function refreshEventBoard() {
   <Page :auto-content-height="true">
     <div class="flex flex-col gap-4 p-2">
       <Alert
-        message="事件中心已升级为告警复核与工单联动演示页"
-        description="当前页面聚焦识别告警进入人工复核后的闭环处理，可与调度中心和 AI 模型中心形成完整演示链。"
+        message="事件中心首页已切换为共享闭环态势页"
+        description="当前页面直接读取事件、复核、工单共享会话状态，首页动作会同步回写到复核页、工单页和报告页。"
         show-icon
         type="error"
       />
+
+      <EventContextBar current="overview" />
 
       <Card :bordered="false" title="事件筛选与快捷动作">
         <div class="event-toolbar">
@@ -389,6 +550,14 @@ function refreshEventBoard() {
 
       <Row :gutter="[16, 16]">
         <Col v-for="item in stats" :key="item.title" :lg="6" :md="12" :span="24">
+          <Card :bordered="false">
+            <Statistic :suffix="item.suffix" :title="item.title" :value="item.value" />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row :gutter="[16, 16]">
+        <Col v-for="item in closureStats" :key="item.title" :lg="6" :md="12" :span="24">
           <Card :bordered="false">
             <Statistic :suffix="item.suffix" :title="item.title" :value="item.value" />
           </Card>
@@ -432,6 +601,9 @@ function refreshEventBoard() {
                   <Space>
                     <Button size="small" type="link" @click="openEventDetail(record.key)">
                       查看详情
+                    </Button>
+                    <Button size="small" type="link" @click="router.push('/event/review')">
+                      去复核
                     </Button>
                     <Button
                       size="small"
@@ -563,6 +735,9 @@ function refreshEventBoard() {
             <DescriptionsItem label="当前处理人">
               {{ selectedEvent.assignee }}
             </DescriptionsItem>
+            <DescriptionsItem label="关联工单">
+              {{ selectedEvent.relatedWorkorderId || '未生成' }}
+            </DescriptionsItem>
             <DescriptionsItem label="工单状态">
               <Tag :color="getWorkOrderColor(selectedEvent.workOrderStatus)">
                 {{ selectedEvent.workOrderStatus }}
@@ -592,6 +767,12 @@ function refreshEventBoard() {
             <Button danger @click="rejectEvent()">驳回</Button>
             <Button @click="correctEvent()">修正</Button>
             <Button @click="createWorkOrder()">转工单</Button>
+            <Button
+              v-if="selectedEvent.relatedWorkorderId"
+              @click="router.push(`/event/workorder-detail?id=${selectedEvent.relatedWorkorderId}`)"
+            >
+              查看工单
+            </Button>
           </div>
         </template>
       </Drawer>

@@ -146,7 +146,7 @@ const mockData = [
 
 const mockCrud = createMockCrud(mockData);
 
-export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
+export default function (props: CreateCrudOptionsProps): CreateCrudOptionsRet {
   return {
     crudOptions: {
       request: {
@@ -154,6 +154,22 @@ export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
         addRequest: mockCrud.addRequest,
         editRequest: mockCrud.editRequest,
         delRequest: mockCrud.delRequest,
+      },
+      rowHandle: {
+        fixed: 'right',
+        width: 200,
+        buttons: {
+          detail: {
+            text: '详情',
+            type: 'link',
+            order: -1,
+            click: ({ row }: any) => {
+              (props as any).context?.router?.push(
+                `/device/detail?id=${row.id}`,
+              );
+            },
+          },
+        },
       },
       columns: {
         id: hiddenIdColumn,

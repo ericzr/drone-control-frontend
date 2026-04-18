@@ -24,10 +24,14 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   logo: {
     enable: true,
-    source: '/logo.png',
+    expandedSource: '/logo-full-light.png',
+    expandedSourceDark: '/logo-full-dark.png',
+    fit: 'contain',
+    source: '/logo-light.png',
+    sourceDark: '/logo-dark.png',
   },
   copyright: {
-    companyName: '大航蜂Drone OS',
+    companyName: '云界空域OS',
     companySiteLink: 'https://docs.battcn.com/',
   },
   widget: {

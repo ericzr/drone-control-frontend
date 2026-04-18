@@ -258,6 +258,8 @@ const headerSlots = computed(() => {
         :fit="preferences.logo.fit"
         :class="logoClass"
         :collapsed="logoCollapsed"
+        :expanded-src="preferences.logo.expandedSource"
+        :expanded-src-dark="preferences.logo.expandedSourceDark"
         :src="preferences.logo.source"
         :src-dark="preferences.logo.sourceDark"
         :text="preferences.app.name"
@@ -351,6 +353,8 @@ const headerSlots = computed(() => {
       <VbenLogo
         v-if="preferences.logo.enable"
         :fit="preferences.logo.fit"
+        :expanded-src="preferences.logo.expandedSource"
+        :expanded-src-dark="preferences.logo.expandedSourceDark"
         :src="preferences.logo.source"
         :src-dark="preferences.logo.sourceDark"
         :text="preferences.app.name"

@@ -1,12 +1,15 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 
+import { useRouter } from 'vue-router';
+
 import type { AlertImage } from '../scenes';
 
 defineProps<{
   images: AlertImage[];
 }>();
 
+const router = useRouter();
 const previewVisible = ref(false);
 const previewItem = ref<AlertImage | null>(null);
 
@@ -17,6 +20,14 @@ function openPreview(item: AlertImage) {
 
 function closePreview() {
   previewVisible.value = false;
+}
+
+function goEventDetail() {
+  if (previewItem.value) {
+    const eid = previewItem.value.eventId || previewItem.value.id;
+    closePreview();
+    router.push(`/event/detail?id=${eid}`);
+  }
 }
 
 function levelColor(level: string) {
@@ -76,8 +87,9 @@ function levelLabel(level: string) {
                 <span class="alert-preview__conf">置信度 {{ (previewItem.confidence * 100).toFixed(1) }}%</span>
               </div>
               <div class="alert-preview__sub">
-                📍 {{ previewItem.location }} &nbsp;·&nbsp; 🕐 {{ previewItem.time }}
+                {{ previewItem.location }} · {{ previewItem.time }}
               </div>
+              <button class="alert-preview__goto" @click="goEventDetail">查看事件详情 ›</button>
             </div>
             <button class="alert-preview__close" @click="closePreview">✕</button>
           </div>
@@ -223,6 +235,24 @@ function levelLabel(level: string) {
   margin-top: 8px;
   color: #9ca3af;
   font-size: 13px;
+}
+
+.alert-preview__goto {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 16px;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  background: transparent;
+  color: #60a5fa;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #3b82f6;
+    color: #fff;
+  }
 }
 
 .alert-preview__close {

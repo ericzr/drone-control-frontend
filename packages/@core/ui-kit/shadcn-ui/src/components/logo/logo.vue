@@ -9,6 +9,14 @@ interface Props {
    */
   collapsed?: boolean;
   /**
+   * @zh_CN 展开状态下的完整 Logo 图标
+   */
+  expandedSrc?: string;
+  /**
+   * @zh_CN 暗色主题展开 Logo 图标 (可选，若不设置则使用 expandedSrc)
+   */
+  expandedSrcDark?: string;
+  /**
    * @zh_CN Logo 图片适应方式
    */
   fit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
@@ -44,6 +52,8 @@ defineOptions({
 
 const props = withDefaults(defineProps<Props>(), {
   collapsed: false,
+  expandedSrc: '',
+  expandedSrcDark: '',
   href: 'javascript:void 0',
   logoSize: 32,
   src: '',
@@ -63,6 +73,20 @@ const logoSrc = computed(() => {
   // 否则使用默认的 src
   return props.src;
 });
+
+const expandedLogoSrc = computed(() => {
+  if (!props.expandedSrc) {
+    return '';
+  }
+  if (props.theme === 'dark' && props.expandedSrcDark) {
+    return props.expandedSrcDark;
+  }
+  return props.expandedSrc;
+});
+
+const useExpandedLogo = computed(() => {
+  return !props.collapsed && !!expandedLogoSrc.value;
+});
 </script>
 
 <template>
@@ -70,17 +94,23 @@ const logoSrc = computed(() => {
     <a
       :class="$attrs.class"
       :href="href"
-      class="flex h-full items-center gap-2 overflow-hidden px-3 text-lg leading-normal transition-all duration-500"
+      class="flex h-full items-center gap-1.5 overflow-hidden px-2 text-lg leading-normal transition-all duration-500"
     >
+      <img
+        v-if="useExpandedLogo"
+        :alt="text || 'logo'"
+        :src="expandedLogoSrc"
+        class="block h-6 w-auto max-w-[140px] shrink-0 object-contain"
+      />
       <VbenAvatar
-        v-if="logoSrc"
+        v-else-if="logoSrc"
         :alt="text"
         :src="logoSrc"
         :size="logoSize"
         :fit="fit"
         class="relative rounded-none bg-transparent"
       />
-      <template v-if="!collapsed">
+      <template v-if="!collapsed && !useExpandedLogo">
         <slot name="text">
           <span class="truncate text-nowrap font-semibold text-foreground">
             {{ text }}

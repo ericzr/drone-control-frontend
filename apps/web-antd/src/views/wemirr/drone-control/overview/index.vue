@@ -1,11 +1,11 @@
 <script lang="ts" setup name="DroneControlOverviewPage">
 import { Page } from '@vben/common-ui';
 
-import { onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { Icon } from '@iconify/vue';
 import {
+  Alert,
   Badge,
   Card,
   Col,
@@ -18,9 +18,17 @@ import {
   Tag,
 } from 'ant-design-vue';
 
+import { peekTakeoffTasks } from '../_services/takeoff-task-store';
+import { getAlertLevelColor, getAlertLevelText } from '../constants/colors';
+
+function escapeCsvCell(cell: string) {
+  if (/[",\n\r]/.test(cell)) return `"${cell.replace(/"/g, '""')}"`;
+  return cell;
+}
+
 function exportCsv(headers: string[], rows: string[][], filename: string) {
   const bom = '\uFEFF';
-  const csv = bom + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const csv = bom + [headers.map(escapeCsvCell).join(','), ...rows.map((r) => r.map(escapeCsvCell).join(','))].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -33,10 +41,24 @@ function exportCsv(headers: string[], rows: string[][], filename: string) {
 const router = useRouter();
 
 const loading = ref(true);
+const pendingTakeoffCount = ref(0);
+let pendingTakeoffTimer: number | undefined;
+let loadingTimeout: number | undefined;
+
 onMounted(() => {
-  setTimeout(() => {
+  loadingTimeout = window.setTimeout(() => {
     loading.value = false;
   }, 600);
+  const tick = () => {
+    pendingTakeoffCount.value = peekTakeoffTasks().length;
+  };
+  tick();
+  pendingTakeoffTimer = window.setInterval(tick, 2000);
+});
+
+onBeforeUnmount(() => {
+  if (loadingTimeout) window.clearTimeout(loadingTimeout);
+  if (pendingTakeoffTimer) window.clearInterval(pendingTakeoffTimer);
 });
 
 const stats = [
@@ -47,23 +69,32 @@ const stats = [
 ];
 
 const modules = [
-  { key: 'cmd', title: '指挥中心', desc: '全域态势一张图，多场景切换，AI 告警与数据驾驶舱', path: '/situation-board' },
-  { key: 'dsp', title: '调度中心', desc: '综合态势、视频监控墙、任务调度', path: '/dispatch/situation' },
-  { key: 'dev', title: '设备中心', desc: '无人机、机巢、机器狗、无人车、摄像头、传感器、充电站', path: '/device/uav' },
-  { key: 'flt', title: '飞控中心', desc: '航线规划、计划管理、飞行作业、虚拟驾驶舱', path: '/flight/route-plan' },
-  { key: 'evt', title: '事件中心', desc: '事件列表、事件复核、工单管理', path: '/event/list' },
-  { key: 'ai', title: 'AI 模型中心', desc: '模型库、部署管理、评估报告、算法商城', path: '/ai-center/model-repo' },
+  { key: 'cmd', title: '指挥中心', desc: '面向区域的一张图态势总览，统一查看多行业场景、多类型资产与告警分布', path: '/situation-board' },
+  { key: 'dsp', title: '调度中心', desc: '统一编排无人机、机场、无人车、机器人与摄像头的协同任务与现场联动', path: '/dispatch/situation' },
+  { key: 'dev', title: '设备中心', desc: '统一纳管区域内无人机、机场、机器人、无人车、摄像头、传感器等全量资产', path: '/device/uav' },
+  { key: 'flt', title: '飞控中心', desc: '承接统飞中的空域资源、航线申请、计划管理、飞行执行与座舱控制', path: '/flight/airspace-resource' },
+  { key: 'app', title: '专题应用', desc: '基于全域统飞底座，为林草、交通、城管、环保、工程等部门场景提供垂直作业工作台', path: '/applications/forestry' },
+  { key: 'evt', title: '事件中心', desc: '围绕农林、交通、城管、环保、工程等场景完成事件研判、处置与闭环留痕', path: '/event/list' },
+  { key: 'ai', title: 'AI 模型中心', desc: '为统飞提供数据源、识别、预警、历史回放、模型部署与效果评估的智能引擎', path: '/ai-center/data-source' },
 ];
 
 const quickLinks = [
   { label: '无人机管理', path: '/device/uav', icon: 'mdi:quadcopter' },
   { label: '机巢管理', path: '/device/dock', icon: 'mdi:home-variant-outline' },
+  { label: '空域资源', path: '/flight/airspace-resource', icon: 'mdi:vector-polyline' },
+  { label: '林草巡检专题', path: '/applications/forestry', icon: 'mdi:pine-tree' },
   { label: '航线规划', path: '/flight/route-plan', icon: 'mdi:map-marker-path' },
   { label: '虚拟驾驶舱', path: '/flight/cockpit', icon: 'mdi:steering' },
   { label: '综合态势', path: '/dispatch/situation', icon: 'mdi:earth' },
   { label: '视频监控', path: '/dispatch/video-wall', icon: 'mdi:monitor-multiple' },
   { label: '事件列表', path: '/event/list', icon: 'mdi:format-list-bulleted' },
+  { label: '创建工单', path: '/event/workorder', icon: 'mdi:clipboard-plus-outline' },
   { label: '工单管理', path: '/event/workorder', icon: 'mdi:clipboard-flow-outline' },
+  { label: '媒体库', path: '/ai-center/media-library', icon: 'mdi:folder-multiple-image' },
+  { label: '数据源管理', path: '/ai-center/data-source', icon: 'mdi:database-cog-outline' },
+  { label: '分析任务', path: '/ai-center/task', icon: 'mdi:tune-variant' },
+  { label: '告警规则', path: '/ai-center/rule', icon: 'mdi:shield-alert-outline' },
+  { label: '历史回放', path: '/ai-center/detect-history', icon: 'mdi:history' },
   { label: '模型库', path: '/ai-center/model-repo', icon: 'mdi:database-outline' },
   { label: '算法商城', path: '/ai-center/marketplace', icon: 'mdi:store-outline' },
   { label: '评估报告', path: '/ai-center/evaluation', icon: 'mdi:chart-line' },
@@ -71,11 +102,11 @@ const quickLinks = [
 ];
 
 const recentAlerts = [
-  { type: '烟雾告警', level: 'critical', location: '北坡 230m 处', time: '3 分钟前', scene: '森林防火' },
-  { type: '违停检测', level: 'warning', location: '人民路交叉口', time: '15 分钟前', scene: '交通巡查' },
-  { type: '未戴安全帽', level: 'critical', location: 'A 工地 3 号楼', time: '28 分钟前', scene: '安全生产' },
-  { type: '管道泄漏', level: 'warning', location: '主管网 K8+500', time: '45 分钟前', scene: '热力巡检' },
-  { type: '占道经营', level: 'info', location: '朝阳路步行街', time: '1 小时前', scene: '市政巡检' },
+  { id: '3', type: '烟雾告警', level: 'critical', location: '北坡 230m 处', time: '3 分钟前', scene: '森林防火', source: 'AI' },
+  { id: '1', type: '违停检测', level: 'warning', location: '人民路交叉口', time: '15 分钟前', scene: '交通巡查', source: 'AI' },
+  { id: '5', type: '未戴安全帽', level: 'critical', location: 'A 工地 3 号楼', time: '28 分钟前', scene: '安全生产', source: 'AI' },
+  { id: '4', type: '管道泄漏', level: 'warning', location: '主管网 K8+500', time: '45 分钟前', scene: '热力巡检', source: '设备' },
+  { id: '2', type: '占道经营', level: 'info', location: '朝阳路步行街', time: '1 小时前', scene: '市政巡检', source: '人工' },
 ];
 
 const deviceOverview = [
@@ -103,11 +134,7 @@ const calendarEvents = [
   { date: 25, items: [{ text: '夜间红外巡检实操', type: 'training' }, { text: '工业区违建复查', type: 'task' }] },
 ];
 
-function notifIcon(type: string) {
-  if (type === 'task') return '📋';
-  if (type === 'alert') return '⚠️';
-  return '🔔';
-}
+const currentMonthLabel = computed(() => `${new Date().getMonth() + 1} 月`);
 
 function calendarTypeColor(type: string) {
   if (type === 'task') return 'blue';
@@ -117,6 +144,32 @@ function calendarTypeColor(type: string) {
 
 function nav(path: string) {
   router.push(path);
+}
+
+function quickEmoji(icon: string) {
+  const map: Record<string, string> = {
+    'mdi:quadcopter': '🛸',
+    'mdi:home-variant-outline': '🏠',
+    'mdi:vector-polyline': '🧭',
+    'mdi:pine-tree': '🌲',
+    'mdi:map-marker-path': '🗺️',
+    'mdi:steering': '🎮',
+    'mdi:earth': '🌍',
+    'mdi:monitor-multiple': '📺',
+    'mdi:format-list-bulleted': '📋',
+    'mdi:clipboard-plus-outline': '📝',
+    'mdi:clipboard-flow-outline': '📦',
+    'mdi:folder-multiple-image': '🗂️',
+    'mdi:database-cog-outline': '🛰️',
+    'mdi:tune-variant': '🧠',
+    'mdi:shield-alert-outline': '🚨',
+    'mdi:history': '⏱️',
+    'mdi:database-outline': '🗄️',
+    'mdi:store-outline': '🛒',
+    'mdi:chart-line': '📈',
+    'mdi:rocket-launch-outline': '🚀',
+  };
+  return map[icon] || '•';
 }
 
 function handleExportDevices() {
@@ -133,22 +186,30 @@ function handleExportDevices() {
   message.success('设备概览已导出');
 }
 
-function levelColor(level: string) {
-  if (level === 'critical') return '#ff4d4f';
-  if (level === 'warning') return '#faad14';
-  return '#1677ff';
-}
-
-function levelText(level: string) {
-  if (level === 'critical') return '紧急';
-  if (level === 'warning') return '一般';
-  return '提示';
-}
+const levelColor = getAlertLevelColor;
+const levelText = getAlertLevelText;
 </script>
 
 <template>
   <Page>
     <div class="flex flex-col gap-4 p-2">
+      <Card :bordered="false">
+        <div class="overview-hero">
+          <div class="overview-hero__main">
+            <div class="overview-hero__title">云界空域OS · 一网统飞运行总览</div>
+            <div class="overview-hero__desc">
+              面向市 / 区县范围统一纳管无人机、机场、无人车、机器人与摄像头资产，围绕农林、交通、城管、环保、工程项目等场景开展跨设备协同巡检与事件闭环。
+            </div>
+          </div>
+          <Space wrap>
+            <Tag color="blue">区域统筹</Tag>
+            <Tag color="cyan">多资产联动</Tag>
+            <Tag color="purple">多场景巡检</Tag>
+            <Tag color="green">事件闭环</Tag>
+          </Space>
+        </div>
+      </Card>
+
       <Skeleton :loading="loading" active :paragraph="{ rows: 1 }">
         <Row :gutter="[16, 16]">
           <Col v-for="item in stats" :key="item.title" :lg="6" :md="12" :span="24">
@@ -158,6 +219,17 @@ function levelText(level: string) {
           </Col>
         </Row>
       </Skeleton>
+
+      <Alert
+        v-if="pendingTakeoffCount > 0"
+        type="info"
+        show-icon
+        :message="`有 ${pendingTakeoffCount} 条机巢起飞任务待同步至任务调度（会话演示）`"
+      >
+        <template #action>
+          <a class="text-primary" @click="nav('/dispatch/task')">前往任务调度</a>
+        </template>
+      </Alert>
 
       <Row :gutter="[16, 16]">
         <Col v-for="m in modules" :key="m.key" :lg="8" :md="12" :span="24">
@@ -178,7 +250,7 @@ function levelText(level: string) {
                 class="quick-item"
                 @click="nav(link.path)"
               >
-                <Icon :icon="link.icon" class="quick-item__icon" />
+                <span class="quick-item__icon">{{ quickEmoji(link.icon) }}</span>
                 <span>{{ link.label }}</span>
               </div>
             </div>
@@ -192,18 +264,21 @@ function levelText(level: string) {
             </template>
             <div class="alert-list">
               <div
-                v-for="(a, i) in recentAlerts"
-                :key="i"
+                v-for="a in recentAlerts"
+                :key="a.id"
                 class="alert-item"
-                @click="nav('/event/list')"
+                @click="nav(`/event/detail?id=${a.id}`)"
               >
                 <Badge :color="levelColor(a.level)" />
                 <div class="alert-item__content">
                   <div class="alert-item__head">
                     <span class="alert-item__type">{{ a.type }}</span>
-                    <Tag :color="levelColor(a.level)" size="small" :bordered="false">
-                      {{ levelText(a.level) }}
-                    </Tag>
+                    <div class="flex items-center gap-1">
+                      <Tag :color="a.source === 'AI' ? 'purple' : a.source === '设备' ? 'cyan' : 'default'" size="small" :bordered="false">{{ a.source }}</Tag>
+                      <Tag :color="levelColor(a.level)" size="small" :bordered="false">
+                        {{ levelText(a.level) }}
+                      </Tag>
+                    </div>
                   </div>
                   <div class="alert-item__meta">
                     {{ a.location }} · {{ a.scene }} · {{ a.time }}
@@ -260,7 +335,7 @@ function levelText(level: string) {
         </Col>
 
         <Col :lg="12" :span="24">
-          <Card :bordered="false" title="本月日程 · 4 月">
+          <Card :bordered="false" :title="`本月日程 · ${currentMonthLabel}`">
             <div class="calendar-list">
               <div v-for="day in calendarEvents" :key="day.date" class="calendar-day">
                 <div class="calendar-day__date">
@@ -282,6 +357,32 @@ function levelText(level: string) {
 </template>
 
 <style lang="less" scoped>
+.overview-hero {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.overview-hero__main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.overview-hero__title {
+  color: var(--ant-color-text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.overview-hero__desc {
+  color: var(--ant-color-text-description);
+  line-height: 1.7;
+  max-width: 860px;
+}
+
 .module-title {
   font-size: 15px;
   font-weight: 600;
@@ -304,6 +405,11 @@ function levelText(level: string) {
 }
 
 @media (max-width: 768px) {
+  .overview-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .quick-grid {
     grid-template-columns: repeat(2, 1fr);
   }

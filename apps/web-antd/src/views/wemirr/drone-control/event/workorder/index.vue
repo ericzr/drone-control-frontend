@@ -1,7 +1,8 @@
 <script lang="ts" setup name="EventWorkorderPage">
 import { Page } from '@vben/common-ui';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import {
   Badge,
@@ -11,8 +12,6 @@ import {
   Descriptions,
   DescriptionsItem,
   Drawer,
-  Input,
-  Modal,
   Row,
   Select,
   SelectOption,
@@ -23,93 +22,38 @@ import {
   Textarea,
   Timeline,
   TimelineItem,
+  Input,
   message,
 } from 'ant-design-vue';
 
-interface Workorder {
-  id: string;
-  title: string;
-  eventId: string;
-  type: string;
-  level: string;
-  status: number;
-  location: string;
-  assignee: string;
-  creator: string;
-  createTime: string;
-  deadline: string;
-  description: string;
-  logs: { time: string; action: string; user: string; note?: string }[];
-}
+import {
+  getClosureEventByNoOrId,
+  listClosureEvents,
+  listClosureWorkorders,
+  syncWorkorderStatus,
+  type EventWorkorderRecord,
+  useEventClosureVersion,
+} from '../../_services/event-closure-store';
+import EventContextBar from '../../components/EventContextBar.vue';
+import { matchesWorkorderSource } from '../../composables/use-event-context';
 
+const route = useRoute();
+const router = useRouter();
+const closureStoreVersion = useEventClosureVersion();
 const statusLabels = ['待指派', '待处置', '处置中', '待复核', '已归档'];
-
-const workorders = ref<Workorder[]>([
-  {
-    id: 'WO-20260413-001', title: '北坡林区烟雾告警处置', eventId: 'EVT-20260413-003',
-    type: '告警处置', level: '紧急', status: 4, location: '北坡 230m 处',
-    assignee: '张伟', creator: '系统自动', createTime: '2026-04-13 14:33', deadline: '2026-04-13 16:00',
-    description: 'AI 检测到北坡林区疑似烟雾，置信度 92%，需现场核实并处置。',
-    logs: [
-      { time: '14:33', action: '工单创建', user: '系统', note: 'AI 告警自动生成' },
-      { time: '14:35', action: '指派处理人', user: '李指挥', note: '指派张伟前往现场' },
-      { time: '14:50', action: '到达现场', user: '张伟', note: '已到达，确认为农户焚烧秸秆' },
-      { time: '15:10', action: '提交处置', user: '张伟', note: '已劝阻农户并扑灭明火，拍照取证' },
-      { time: '15:25', action: '复核通过', user: '李指挥', note: '确认处置完毕，归档' },
-    ],
-  },
-  {
-    id: 'WO-20260413-002', title: '人民路违停车辆处置', eventId: 'EVT-20260413-005',
-    type: '告警处置', level: '一般', status: 2, location: '人民路交叉口',
-    assignee: '王芳', creator: '系统自动', createTime: '2026-04-13 15:00', deadline: '2026-04-13 18:00',
-    description: 'AI 检测到人民路交叉口红色轿车违停，需通知车主或拖移。',
-    logs: [
-      { time: '15:00', action: '工单创建', user: '系统', note: 'AI 告警自动生成' },
-      { time: '15:05', action: '指派处理人', user: '赵指挥', note: '指派王芳处理' },
-      { time: '15:20', action: '到达现场', user: '王芳', note: '已到达，正在联系车主' },
-    ],
-  },
-  {
-    id: 'WO-20260413-003', title: '渭河 K12 段漂浮物清理', eventId: 'EVT-20260413-008',
-    type: '巡检工单', level: '一般', status: 1, location: '渭河 K12 段',
-    assignee: '', creator: '李巡查', createTime: '2026-04-13 10:15', deadline: '2026-04-14 12:00',
-    description: '巡检发现渭河 K12 段河面大量漂浮物聚集，需协调水务部门清理。',
-    logs: [
-      { time: '10:15', action: '工单创建', user: '李巡查', note: '巡检发现，手动创建' },
-    ],
-  },
-  {
-    id: 'WO-20260412-004', title: '工业区未戴安全帽人员', eventId: 'EVT-20260412-012',
-    type: '告警处置', level: '紧急', status: 3, location: '工业区 B 区工地',
-    assignee: '赵强', creator: '系统自动', createTime: '2026-04-12 16:40', deadline: '2026-04-12 18:00',
-    description: 'AI 检测到工地现场 3 名人员未佩戴安全帽，需现场整改。',
-    logs: [
-      { time: '16:40', action: '工单创建', user: '系统', note: 'AI 告警自动生成' },
-      { time: '16:42', action: '指派处理人', user: '李指挥', note: '指派赵强前往' },
-      { time: '17:00', action: '到达现场', user: '赵强', note: '已到达，要求施工方整改' },
-      { time: '17:20', action: '提交处置', user: '赵强', note: '施工方已整改，全员佩戴安全帽' },
-    ],
-  },
-  {
-    id: 'WO-20260412-005', title: '光伏板热斑异常', eventId: 'EVT-20260412-015',
-    type: '巡检工单', level: '一般', status: 0, location: '光伏电站 A 区',
-    assignee: '', creator: '系统自动', createTime: '2026-04-12 11:30', deadline: '2026-04-15 18:00',
-    description: '红外巡检发现 A 区 3 号组串存在热斑异常，需安排检修。',
-    logs: [
-      { time: '11:30', action: '工单创建', user: '系统', note: '红外巡检自动生成' },
-    ],
-  },
-]);
 
 const columns = [
   { title: '工单编号', dataIndex: 'id', key: 'id', width: 170 },
   { title: '标题', dataIndex: 'title', key: 'title' },
+  { title: '关联场景', dataIndex: 'scene', key: 'scene', width: 110 },
+  { title: '来源', dataIndex: 'source', key: 'source', width: 70 },
+  { title: '优先级', dataIndex: 'priority', key: 'priority', width: 70 },
   { title: '类型', dataIndex: 'type', key: 'type', width: 90 },
   { title: '级别', dataIndex: 'level', key: 'level', width: 70 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
   { title: '处理人', dataIndex: 'assignee', key: 'assignee', width: 80 },
   { title: '截止时间', dataIndex: 'deadline', key: 'deadline', width: 140 },
-  { title: '', key: 'ops', width: 60 },
+  { title: '', key: 'ops', width: 100 },
 ];
 
 function levelColor(l: string) { return l === '紧急' ? 'red' : 'orange'; }
@@ -117,14 +61,28 @@ function statusTag(s: number) {
   const colors = ['default', 'orange', 'blue', 'purple', 'green'];
   return colors[s] || 'default';
 }
+function sourceColor(s: string) {
+  if (s === 'AI') return 'purple';
+  if (s === '举报') return 'volcano';
+  return 'cyan';
+}
+function priorityColor(p: string) {
+  if (p === '一级') return 'red';
+  if (p === '二级') return 'orange';
+  return 'blue';
+}
 
 // Detail drawer
 const detailVisible = ref(false);
-const currentOrder = ref<Workorder | null>(null);
+const currentOrder = ref<EventWorkorderRecord | null>(null);
 
-function openDetail(order: Workorder) {
+function openDetail(order: EventWorkorderRecord) {
   currentOrder.value = order;
   detailVisible.value = true;
+}
+
+function openDetailFromTable(record: Record<string, any>) {
+  openDetail(record as EventWorkorderRecord);
 }
 
 // Actions
@@ -133,57 +91,235 @@ const assigneeSelect = ref('');
 const handleNote = ref('');
 const reviewNote = ref('');
 
+const allWorkorders = computed(() => {
+  closureStoreVersion.value;
+  return listClosureWorkorders();
+});
+
+const eventMap = computed(() => {
+  closureStoreVersion.value;
+  return new Map(listClosureEvents().map((item) => [item.eventNo, item]));
+});
+
 function handleAssign() {
   if (!currentOrder.value || !assigneeSelect.value) { message.warning('请选择处理人'); return; }
-  currentOrder.value.assignee = assigneeSelect.value;
-  currentOrder.value.status = 1;
-  currentOrder.value.logs.push({ time: new Date().toLocaleTimeString().slice(0, 5), action: '指派处理人', user: '当前用户', note: `指派 ${assigneeSelect.value}` });
+  const updated = syncWorkorderStatus({
+    workorderId: currentOrder.value.id,
+    status: 1,
+    assignee: assigneeSelect.value,
+    log: { time: new Date().toLocaleTimeString().slice(0, 5), action: '指派处理人', user: '当前用户', note: `指派 ${assigneeSelect.value}` },
+  });
+  if (updated) currentOrder.value = { ...updated };
   message.success('已指派');
 }
 
 function handleArrive() {
   if (!currentOrder.value) return;
-  currentOrder.value.status = 2;
-  currentOrder.value.logs.push({ time: new Date().toLocaleTimeString().slice(0, 5), action: '到达现场', user: currentOrder.value.assignee });
+  const updated = syncWorkorderStatus({
+    workorderId: currentOrder.value.id,
+    status: 2,
+    log: { time: new Date().toLocaleTimeString().slice(0, 5), action: '到达现场', user: currentOrder.value.assignee },
+  });
+  if (updated) currentOrder.value = { ...updated };
   message.info('已标记到达现场');
 }
 
 function handleSubmit() {
   if (!currentOrder.value || !handleNote.value) { message.warning('请填写处置说明'); return; }
-  currentOrder.value.status = 3;
-  currentOrder.value.logs.push({ time: new Date().toLocaleTimeString().slice(0, 5), action: '提交处置', user: currentOrder.value.assignee, note: handleNote.value });
+  const updated = syncWorkorderStatus({
+    workorderId: currentOrder.value.id,
+    status: 3,
+    log: { time: new Date().toLocaleTimeString().slice(0, 5), action: '提交处置', user: currentOrder.value.assignee, note: handleNote.value },
+  });
+  if (updated) currentOrder.value = { ...updated };
   handleNote.value = '';
   message.success('处置记录已提交');
 }
 
 function handleReview(pass: boolean) {
   if (!currentOrder.value) return;
-  if (pass) {
-    currentOrder.value.status = 4;
-    currentOrder.value.logs.push({ time: new Date().toLocaleTimeString().slice(0, 5), action: '复核通过', user: '当前用户', note: reviewNote.value || '确认处置完毕' });
-    message.success('已归档');
-  } else {
-    currentOrder.value.status = 2;
-    currentOrder.value.logs.push({ time: new Date().toLocaleTimeString().slice(0, 5), action: '复核驳回', user: '当前用户', note: reviewNote.value || '需重新处置' });
-    message.warning('已驳回，退回处置');
-  }
+  const updated = syncWorkorderStatus({
+    workorderId: currentOrder.value.id,
+    status: pass ? 4 : 2,
+    log: { time: new Date().toLocaleTimeString().slice(0, 5), action: pass ? '复核通过' : '复核驳回', user: '当前用户', note: reviewNote.value || (pass ? '确认处置完毕' : '需重新处置') },
+  });
+  if (updated) currentOrder.value = { ...updated };
+  if (pass) message.success('已归档');
+  else message.warning('已驳回，退回处置');
   reviewNote.value = '';
 }
 
-const filterStatus = ref<number | null>(null);
+const filterStatus = ref<number | null>(
+  route.query.status ? Number(route.query.status) : null,
+);
+const filterScene = ref((route.query.scene as string) || 'all');
+const filterSource = ref((route.query.source as string) || 'all');
+const keyword = ref((route.query.keyword as string) || '');
+const routeEventId = computed(() => (route.query.id as string) || '');
+
+const sceneOptions = computed(() => {
+  closureStoreVersion.value;
+  return [...new Set(listClosureEvents().map((item) => item.scene))];
+});
+
+const workorderRows = computed(() => {
+  return allWorkorders.value.map((item) => {
+    const event = eventMap.value.get(item.eventId);
+    return {
+      ...item,
+      scene: event?.scene || '未归类',
+      eventStatus: event?.status || '未知',
+      eventRegion: event?.region || '',
+    };
+  });
+});
+
+const contextTitle = computed(() => {
+  const eventId = routeEventId.value;
+  if (eventId) return `当前按事件 ${eventId} 查看关联工单`;
+  if (filterScene.value !== 'all') return `当前按场景 ${filterScene.value} 查看工单`;
+  if (filterSource.value !== 'all') return `当前按来源 ${filterSource.value} 查看工单`;
+  return '当前展示全部工单，可按状态、场景、来源快速筛选';
+});
+
+const contextOrders = computed(() => {
+  return workorderRows.value.filter((order) => {
+    const matchEvent = !routeEventId.value || order.eventId === routeEventId.value;
+    const matchScene = filterScene.value === 'all' || order.scene === filterScene.value;
+    const matchSource = matchesWorkorderSource(order.source, filterSource.value);
+    const matchKeyword =
+      !keyword.value ||
+      [order.id, order.title, order.location, order.eventId]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword.value.toLowerCase());
+    return matchEvent && matchScene && matchSource && matchKeyword;
+  });
+});
+
 const filteredOrders = computed(() => {
-  if (filterStatus.value === null) return workorders.value;
-  return workorders.value.filter((o) => o.status === filterStatus.value);
+  if (filterStatus.value === null) return contextOrders.value;
+  return contextOrders.value.filter((o) => o.status === filterStatus.value);
 });
 
 const statusCounts = computed(() => {
-  return statusLabels.map((_, i) => workorders.value.filter((o) => o.status === i).length);
+  return statusLabels.map((_, i) => contextOrders.value.filter((o) => o.status === i).length);
 });
+
+const contextMetrics = computed(() => {
+  const orders = contextOrders.value;
+  return {
+    total: orders.length,
+    archived: orders.filter((item) => item.status === 4).length,
+    active: orders.filter((item) => item.status < 4).length,
+    evidences: orders.reduce((total, item) => total + item.evidences.length, 0),
+  };
+});
+
+const currentRelatedEvent = computed(() => {
+  if (!currentOrder.value) return null;
+  return getClosureEventByNoOrId(currentOrder.value.eventId);
+});
+
+function resetContextFilters() {
+  filterScene.value = 'all';
+  filterSource.value = 'all';
+  filterStatus.value = null;
+  keyword.value = '';
+  router.replace({ query: {} });
+}
+
+function openRouteContext() {
+  const workorderId = route.query.workorderId as string | undefined;
+  if (workorderId) {
+    const order = allWorkorders.value.find((item) => item.id === workorderId);
+    if (order) openDetail(order);
+    return;
+  }
+  if (routeEventId.value) {
+    const order = allWorkorders.value.find((item) => item.eventId === routeEventId.value);
+    if (order) openDetail(order);
+  }
+}
+
+watch(
+  [
+    () => route.query.id,
+    () => route.query.workorderId,
+    () => route.query.scene,
+    () => route.query.source,
+    () => closureStoreVersion.value,
+  ],
+  () => {
+    filterScene.value = (route.query.scene as string) || 'all';
+    filterSource.value = (route.query.source as string) || 'all';
+    openRouteContext();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
   <Page>
     <div class="flex flex-col gap-3 p-2">
+      <EventContextBar current="workorder" />
+
+      <Card :bordered="false" size="small">
+        <div class="toolbar-card">
+          <div>
+            <div class="toolbar-card__title">工单上下文筛选</div>
+            <div class="toolbar-card__desc">{{ contextTitle }}</div>
+          </div>
+          <Space :size="[10, 10]" wrap>
+            <Input
+              v-model:value="keyword"
+              placeholder="搜索工单编号 / 标题 / 位置"
+              style="width: 220px"
+            />
+            <Select v-model:value="filterScene" style="width: 140px" size="small">
+              <SelectOption value="all">全部场景</SelectOption>
+              <SelectOption v-for="scene in sceneOptions" :key="scene" :value="scene">
+                {{ scene }}
+              </SelectOption>
+            </Select>
+            <Select v-model:value="filterSource" style="width: 110px" size="small">
+              <SelectOption value="all">全部来源</SelectOption>
+              <SelectOption value="AI">AI</SelectOption>
+              <SelectOption value="人工">人工</SelectOption>
+              <SelectOption value="举报">举报</SelectOption>
+            </Select>
+            <Button @click="resetContextFilters">清空上下文</Button>
+          </Space>
+        </div>
+      </Card>
+
+      <Row :gutter="[12, 12]">
+        <Col :lg="6" :span="12">
+          <Card :bordered="false" size="small">
+            <div class="metric-card__value">{{ contextMetrics.total }}</div>
+            <div class="metric-card__label">上下文工单</div>
+          </Card>
+        </Col>
+        <Col :lg="6" :span="12">
+          <Card :bordered="false" size="small">
+            <div class="metric-card__value">{{ contextMetrics.active }}</div>
+            <div class="metric-card__label">运行中</div>
+          </Card>
+        </Col>
+        <Col :lg="6" :span="12">
+          <Card :bordered="false" size="small">
+            <div class="metric-card__value">{{ contextMetrics.archived }}</div>
+            <div class="metric-card__label">已归档</div>
+          </Card>
+        </Col>
+        <Col :lg="6" :span="12">
+          <Card :bordered="false" size="small">
+            <div class="metric-card__value">{{ contextMetrics.evidences }}</div>
+            <div class="metric-card__label">证据总数</div>
+          </Card>
+        </Col>
+      </Row>
+
       <!-- Status summary -->
       <Row :gutter="[12, 12]">
         <Col v-for="(label, i) in statusLabels" :key="i" :lg="{ span: 4 }" :span="12">
@@ -206,6 +342,15 @@ const statusCounts = computed(() => {
       <Card :bordered="false" size="small">
         <Table :columns="columns" :data-source="filteredOrders" size="small" row-key="id">
           <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'source'">
+              <Tag :color="sourceColor(record.source)" size="small">{{ record.source }}</Tag>
+            </template>
+            <template v-if="column.key === 'priority'">
+              <Tag :color="priorityColor(record.priority)" size="small">{{ record.priority }}</Tag>
+            </template>
+            <template v-if="column.key === 'scene'">
+              <Tag color="blue" size="small">{{ record.scene }}</Tag>
+            </template>
             <template v-if="column.key === 'level'">
               <Tag :color="levelColor(record.level)" size="small">{{ record.level }}</Tag>
             </template>
@@ -216,7 +361,10 @@ const statusCounts = computed(() => {
               {{ record.assignee || '-' }}
             </template>
             <template v-if="column.key === 'ops'">
-              <Button type="link" size="small" @click="openDetail(record)">详情</Button>
+              <Space>
+                <Button type="link" size="small" @click="openDetailFromTable(record)">详情</Button>
+                <Button type="link" size="small" @click="router.push(`/event/detail?id=${record.eventId}`)">事件</Button>
+              </Space>
             </template>
           </template>
         </Table>
@@ -225,17 +373,33 @@ const statusCounts = computed(() => {
 
     <!-- Detail Drawer -->
     <Drawer v-model:open="detailVisible" :title="currentOrder?.id || ''" width="520" placement="right">
+      <template #extra>
+        <Button type="link" size="small" @click="router.push(`/event/workorder-detail?id=${currentOrder?.id}`)">在页面中查看 ›</Button>
+      </template>
       <template v-if="currentOrder">
         <Steps :current="currentOrder.status" size="small" class="mb-4" :items="statusLabels.map(s => ({ title: s }))" />
 
         <Descriptions bordered :column="2" size="small">
           <DescriptionsItem label="标题" :span="2">{{ currentOrder.title }}</DescriptionsItem>
-          <DescriptionsItem label="关联事件">{{ currentOrder.eventId }}</DescriptionsItem>
+          <DescriptionsItem label="关联事件">
+            <Button type="link" size="small" style="padding: 0" @click="router.push(`/event/detail?id=${currentOrder.eventId}`)">{{ currentOrder.eventId }}</Button>
+          </DescriptionsItem>
+          <DescriptionsItem label="关联场景">
+            <Tag color="blue" size="small">{{ currentRelatedEvent?.scene || '未归类' }}</Tag>
+          </DescriptionsItem>
           <DescriptionsItem label="类型">{{ currentOrder.type }}</DescriptionsItem>
+          <DescriptionsItem label="来源"><Tag :color="sourceColor(currentOrder.source)" size="small">{{ currentOrder.source }}</Tag></DescriptionsItem>
+          <DescriptionsItem label="优先级"><Tag :color="priorityColor(currentOrder.priority)" size="small">{{ currentOrder.priority }}</Tag></DescriptionsItem>
           <DescriptionsItem label="级别"><Tag :color="levelColor(currentOrder.level)" size="small">{{ currentOrder.level }}</Tag></DescriptionsItem>
           <DescriptionsItem label="处理人">{{ currentOrder.assignee || '未指派' }}</DescriptionsItem>
           <DescriptionsItem label="位置">{{ currentOrder.location }}</DescriptionsItem>
           <DescriptionsItem label="截止时间">{{ currentOrder.deadline }}</DescriptionsItem>
+          <DescriptionsItem label="事件状态">
+            <Tag :color="currentRelatedEvent?.status === '已闭环' ? 'green' : 'orange'">
+              {{ currentRelatedEvent?.status || '未知' }}
+            </Tag>
+          </DescriptionsItem>
+          <DescriptionsItem label="证据数量">{{ currentOrder.evidences.length }} 份</DescriptionsItem>
           <DescriptionsItem label="描述" :span="2">{{ currentOrder.description }}</DescriptionsItem>
         </Descriptions>
 
@@ -272,6 +436,17 @@ const statusCounts = computed(() => {
         </Card>
 
         <!-- Timeline -->
+        <Card size="small" :bordered="false" class="mt-4" title="闭环摘要">
+          <div class="summary-box">
+            {{ currentOrder.closureSummary || '当前工单尚未形成闭环摘要，可在归档或工单详情页继续补充。' }}
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <Button size="small" @click="router.push(`/event/map-view?id=${currentOrder.eventId}`)">地图聚焦</Button>
+            <Button size="small" @click="router.push(`/event/review?id=${currentOrder.eventId}`)">打开复核</Button>
+            <Button size="small" @click="router.push(`/event/report?scene=${currentRelatedEvent?.scene || ''}`)">查看报告</Button>
+          </div>
+        </Card>
+
         <Card size="small" :bordered="false" class="mt-4" title="处置日志">
           <Timeline>
             <TimelineItem v-for="(log, i) in currentOrder.logs" :key="i" :color="i === currentOrder.logs.length - 1 ? 'blue' : 'gray'">
@@ -296,4 +471,10 @@ const statusCounts = computed(() => {
 
 .action-area { display: flex; align-items: center; gap: 12px; }
 .action-area-col { display: flex; flex-direction: column; gap: 10px; }
+.toolbar-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.toolbar-card__title { font-size: 14px; font-weight: 700; color: var(--ant-color-text); }
+.toolbar-card__desc { font-size: 12px; color: var(--ant-color-text-tertiary); margin-top: 4px; }
+.metric-card__value { font-size: 24px; font-weight: 800; color: var(--ant-color-text); font-variant-numeric: tabular-nums; }
+.metric-card__label { font-size: 12px; color: var(--ant-color-text-tertiary); margin-top: 2px; }
+.summary-box { padding: 12px 14px; border-radius: 14px; background: var(--ant-color-bg-layout); color: var(--ant-color-text-secondary); font-size: 13px; line-height: 1.8; }
 </style>

@@ -6,40 +6,99 @@ import type {
 import { hiddenIdColumn } from '#/plugin/fast-crud/shared';
 
 import {
-  createMockCrud,
   eventTypeDict,
   regionDict,
   reviewResultDict,
 } from '../_mock';
+import { listClosureEvents } from '../../_services/event-closure-store';
+import { matchesEventSource } from '../../composables/use-event-context';
 
-const mockData = [
-  { id: '1', eventNo: 'EVT-20260413-002', eventType: '占道经营', region: '城管巡检区', location: '朝阳路步行街入口', source: 'AI识别', confidence: 89, snapshot: '占道_20260413_1440.jpg', reviewer: '', reviewResult: '', reviewRemark: '', reviewTime: '', status: '待复核', createTime: '2026-04-13 14:40:05' },
-  { id: '2', eventNo: 'EVT-20260413-001', eventType: '违停', region: '高新区北片', location: '高新路与科技路交叉口', source: 'AI识别', confidence: 96, snapshot: '违停_20260413_1431.jpg', reviewer: '张指挥', reviewResult: '确认有效', reviewRemark: '确认违停，已转派交管局', reviewTime: '2026-04-13 14:45:00', status: '已复核', createTime: '2026-04-13 14:31:02' },
-  { id: '3', eventNo: 'EVT-20260412-004', eventType: '排污', region: '沿河西路', location: '排污口 A-3', source: 'AI识别', confidence: 92, snapshot: '排污_20260412_1635.jpg', reviewer: '李巡查', reviewResult: '确认有效', reviewRemark: '确认为工业废水排放，需现场取证', reviewTime: '2026-04-12 17:00:00', status: '已复核', createTime: '2026-04-12 16:35:08' },
-  { id: '4', eventNo: 'EVT-20260411-007', eventType: '违停', region: '高新区北片', location: '创业路 56 号门前', source: 'AI识别', confidence: 94, snapshot: '违停_20260411_0845.jpg', reviewer: '张指挥', reviewResult: '误报排除', reviewRemark: '核实为临时许可停车', reviewTime: '2026-04-11 09:10:00', status: '已复核', createTime: '2026-04-11 08:45:06' },
-  { id: '5', eventNo: 'EVT-20260413-003', eventType: '烟火', region: '林草防火区', location: '北坡 37° 区域', source: '卫星热点', confidence: 0, snapshot: '', reviewer: '王安全', reviewResult: '待现场核实', reviewRemark: '已派无人机前往核查', reviewTime: '2026-04-13 10:15:00', status: '已复核', createTime: '2026-04-13 10:05:30' },
-];
+export default function (props: CreateCrudOptionsProps): CreateCrudOptionsRet {
+  async function pageRequest(query: any) {
+    const { current = 1, size = 10, ...filters } = query;
+    const contextFilters =
+      ((props as any).context?.getContextFilters?.() || {}) as {
+        scene?: string;
+        source?: string;
+      };
+    let data = listClosureEvents().map((item) => ({
+      id: item.id,
+      eventNo: item.eventNo,
+      eventType: item.eventType,
+      scene: item.scene,
+      region: item.region,
+      location: item.location,
+      source: item.source,
+      confidence: item.confidence,
+      snapshot: '',
+      reviewer: item.reviewer || '',
+      reviewResult: item.reviewResult || '',
+      reviewRemark: item.reviewRemark || '',
+      reviewTime: item.reviewTime || '',
+      status: item.reviewTime || item.reviewResult ? '已复核' : '待复核',
+      createTime: item.createTime,
+    }));
+    if (contextFilters.scene && contextFilters.scene !== 'all') {
+      data = data.filter((row) => row.scene === contextFilters.scene);
+    }
+    if (contextFilters.source && contextFilters.source !== 'all') {
+      data = data.filter((row) => matchesEventSource(row.source, contextFilters.source || 'all'));
+    }
+    for (const [key, val] of Object.entries(filters)) {
+      if (val === undefined || val === null || val === '') continue;
+      data = data.filter((row: any) => {
+        const field = row[key];
+        if (field == null) return false;
+        if (typeof field === 'string' && typeof val === 'string') return field.includes(val);
+        return String(field) === String(val);
+      });
+    }
+    const total = data.length;
+    const start = (current - 1) * size;
+    return { current, size, total, records: data.slice(start, start + size) };
+  }
 
-import { dict } from '@fast-crud/fast-crud';
-
-const reviewStatusDict = () =>
-  dict({
-    data: [
-      { value: '待复核', label: '待复核', color: 'warning' },
-      { value: '已复核', label: '已复核', color: 'success' },
-    ],
-  });
-
-const mockCrud = createMockCrud(mockData);
-
-export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
   return {
     crudOptions: {
       request: {
-        pageRequest: mockCrud.pageRequest,
-        addRequest: mockCrud.addRequest,
-        editRequest: mockCrud.editRequest,
-        delRequest: mockCrud.delRequest,
+        pageRequest,
+        addRequest: async ({ form }: any) => form,
+        editRequest: async ({ form }: any) => form,
+        delRequest: async ({ row }: any) => row,
+      },
+      rowHandle: {
+        fixed: 'right',
+        width: 300,
+        buttons: {
+          detail: {
+            text: '详情',
+            type: 'link',
+            order: -1,
+            click: ({ row }: any) => {
+              (props as any).context?.router?.push(
+                `/event/detail?id=${row.eventNo}`,
+              );
+            },
+          },
+          review: {
+            text: '复核',
+            type: 'link',
+            order: 0,
+            show: (({ row }: any) => row.status === '待复核') as any,
+            click: ({ row }: any) => {
+              (props as any).context?.openReview?.(row);
+            },
+          },
+          reflightCheck: {
+            text: '发起复飞',
+            type: 'link',
+            order: 1,
+            show: (({ row }: any) => row.reviewResult === '待现场核实') as any,
+            click: ({ row }: any) => {
+              (props as any).context?.triggerReflight?.(row);
+            },
+          },
+        },
       },
       columns: {
         id: hiddenIdColumn,

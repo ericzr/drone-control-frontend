@@ -66,3 +66,54 @@ export const deviceTypeDict = () =>
       { value: '边缘设备', label: '边缘设备' },
     ],
   });
+
+export const spectrumDict = () =>
+  dict({
+    data: [
+      { value: 'visible', label: '可见光（RGB）' },
+      { value: 'infrared', label: '红外热成像' },
+      { value: 'multispectral', label: '多光谱' },
+      { value: 'sar', label: 'SAR 雷达' },
+    ],
+  });
+
+export const inputSourceDict = () =>
+  dict({
+    data: [
+      { value: 'image', label: '图片' },
+      { value: 'video', label: '视频' },
+      { value: 'stream', label: '实时流' },
+      { value: 'all', label: '全类型' },
+    ],
+  });
+
+export const sceneDict = () =>
+  dict({
+    data: [
+      { value: 'traffic', label: '交通巡查' },
+      { value: 'forest-fire', label: '森林防火' },
+      { value: 'construction', label: '安全生产' },
+      { value: 'environment', label: '环境监测' },
+      { value: 'solar', label: '光伏巡检' },
+      { value: 'city-admin', label: '城市管理' },
+      { value: 'water', label: '水域监测' },
+    ],
+  });
+
+export const detectStatusDict = () =>
+  dict({
+    data: [
+      { value: '已完成', label: '已完成', color: 'success' },
+      { value: '检测中', label: '检测中', color: 'processing' },
+      { value: '失败', label: '失败', color: 'error' },
+    ],
+  });
+
+export const detectMethodDict = () =>
+  dict({
+    data: [
+      { value: '图片识别', label: '图片识别' },
+      { value: '视频识别', label: '视频识别' },
+      { value: '摄像头识别', label: '摄像头识别' },
+    ],
+  });

@@ -8,12 +8,13 @@ import {
   Button,
   Card,
   Col,
+  Descriptions,
+  DescriptionsItem,
   Modal,
   Row,
   Select,
   SelectOption,
   Space,
-  Table,
   Tag,
   message,
 } from 'ant-design-vue';
@@ -115,6 +116,14 @@ function hasConflict(item: ScheduleItem) {
   return scheduleItems.some(
     (other) => other.id !== item.id && other.resource === item.resource && other.start < item.end && other.end > item.start,
   );
+}
+
+const ganttDetailVisible = ref(false);
+const ganttDetailItem = ref<ScheduleItem | null>(null);
+
+function openGanttDetail(item: ScheduleItem) {
+  ganttDetailItem.value = item;
+  ganttDetailVisible.value = true;
 }
 
 // Smart dispatch
@@ -225,7 +234,9 @@ function runSmartDispatch() {
                       left: `${((item.start - 6) / 17) * 100}%`,
                       width: `${((item.end - item.start) / 17) * 100}%`,
                       background: hasConflict(item) ? '#ef4444' : item.color,
+                      cursor: 'pointer',
                     }"
+                    @click="openGanttDetail(item)"
                   >
                     <span v-if="hasConflict(item)" class="gantt__conflict-icon">⚠</span>
                   </div>
@@ -236,6 +247,22 @@ function runSmartDispatch() {
         </Col>
       </Row>
     </div>
+
+    <!-- Gantt Task Detail -->
+    <Modal v-model:open="ganttDetailVisible" title="排程任务详情" :footer="null" width="400">
+      <template v-if="ganttDetailItem">
+        <Descriptions bordered :column="1" size="small">
+          <DescriptionsItem label="任务名称">{{ ganttDetailItem.task }}</DescriptionsItem>
+          <DescriptionsItem label="执行资源">{{ ganttDetailItem.resource }}</DescriptionsItem>
+          <DescriptionsItem label="开始时间">{{ ganttDetailItem.start }}:00</DescriptionsItem>
+          <DescriptionsItem label="结束时间">{{ ganttDetailItem.end }}:00</DescriptionsItem>
+          <DescriptionsItem label="时长">{{ ganttDetailItem.end - ganttDetailItem.start }} 小时</DescriptionsItem>
+          <DescriptionsItem label="冲突检测">
+            <Tag :color="hasConflict(ganttDetailItem) ? 'red' : 'green'">{{ hasConflict(ganttDetailItem) ? '存在资源冲突' : '无冲突' }}</Tag>
+          </DescriptionsItem>
+        </Descriptions>
+      </template>
+    </Modal>
 
     <!-- Smart Dispatch Modal -->
     <Modal v-model:open="dispatchVisible" title="智能派单" :footer="null" width="480">

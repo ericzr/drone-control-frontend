@@ -142,6 +142,10 @@ interface HeaderPreferences {
 interface LogoPreferences {
   /** logo是否可见 */
   enable: boolean;
+  /** 展开状态下的完整 logo 地址 */
+  expandedSource?: string;
+  /** 展开状态下的暗色完整 logo 地址 */
+  expandedSourceDark?: string;
   /** logo图片适应方式 */
   fit: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
   /** logo地址 */

@@ -17,6 +17,8 @@ import {
 
 const searchKeyword = ref('');
 const selectedCategory = ref('全部');
+const selectedSpectrum = ref('全部');
+const selectedScene = ref('全部');
 const categoryOptions = [
   { label: '全部', value: '全部' },
   { label: '目标检测', value: '目标检测' },
@@ -24,6 +26,22 @@ const categoryOptions = [
   { label: '异常检测', value: '异常检测' },
   { label: 'OCR识别', value: 'OCR识别' },
   { label: '大模型', value: '大模型' },
+];
+const spectrumOptions = [
+  { label: '全部光谱', value: '全部' },
+  { label: '可见光', value: '可见光' },
+  { label: '红外', value: '红外' },
+  { label: '多光谱', value: '多光谱' },
+];
+const sceneOptions = [
+  { label: '全部场景', value: '全部' },
+  { label: '交通巡查', value: '交通' },
+  { label: '森林防火', value: '林草' },
+  { label: '安全生产', value: '安全' },
+  { label: '环境监测', value: '环保' },
+  { label: '光伏巡检', value: '光伏' },
+  { label: '城市管理', value: '城管' },
+  { label: '水域监测', value: '水域' },
 ];
 
 const algorithms = ref([
@@ -33,6 +51,8 @@ const algorithms = ref([
     tags: ['YOLOv11', '实时检测', 'GPU加速'],
     provider: '大航蜂 AI 团队',
     category: '目标检测',
+    spectrum: '可见光',
+    scene: '城管',
     price: '免费',
     calls: '12.5万次/月',
     rating: 4.8,
@@ -43,6 +63,8 @@ const algorithms = ref([
     tags: ['YOLOv8', '违停', '交通'],
     provider: '大航蜂 AI 团队',
     category: '目标检测',
+    spectrum: '可见光',
+    scene: '交通',
     price: '¥0.01/次',
     calls: '8.2万次/月',
     rating: 4.6,
@@ -53,6 +75,8 @@ const algorithms = ref([
     tags: ['YOLOv11', '烟火', '林草'],
     provider: '大航蜂 AI 团队',
     category: '目标检测',
+    spectrum: '可见光',
+    scene: '林草',
     price: '¥0.02/次',
     calls: '3.6万次/月',
     rating: 4.9,
@@ -63,6 +87,8 @@ const algorithms = ref([
     tags: ['RT-DETR', '分割', '道路'],
     provider: '大航蜂 AI 团队',
     category: '语义分割',
+    spectrum: '可见光',
+    scene: '城管',
     price: '¥0.03/次',
     calls: '1.8万次/月',
     rating: 4.5,
@@ -73,6 +99,8 @@ const algorithms = ref([
     tags: ['Qwen2-VL', '多模态', '大模型'],
     provider: '大航蜂 AI 团队',
     category: '大模型',
+    spectrum: '可见光',
+    scene: '城管',
     price: '¥0.05/次',
     calls: '5200次/月',
     rating: 4.7,
@@ -83,9 +111,23 @@ const algorithms = ref([
     tags: ['YOLOv8', '红外', '光伏'],
     provider: '大航蜂 AI 团队',
     category: '异常检测',
+    spectrum: '红外',
+    scene: '光伏',
     price: '¥0.02/次',
     calls: '6800次/月',
     rating: 4.4,
+  },
+  {
+    name: '红外人员检测',
+    desc: '基于红外热成像的人员检测算法，适用于夜间和低照度安防场景。',
+    tags: ['YOLOv11', '红外', '安防'],
+    provider: '大航蜂 AI 团队',
+    category: '目标检测',
+    spectrum: '红外',
+    scene: '安全',
+    price: '¥0.02/次',
+    calls: '4500次/月',
+    rating: 4.5,
   },
   {
     name: '水体污染分析',
@@ -93,9 +135,23 @@ const algorithms = ref([
     tags: ['CLIP', '水质', '环保'],
     provider: '大航蜂 AI 团队',
     category: '异常检测',
+    spectrum: '多光谱',
+    scene: '水域',
     price: '¥0.02/次',
     calls: '2100次/月',
     rating: 4.2,
+  },
+  {
+    name: '多光谱植被健康评估',
+    desc: '基于多光谱遥感影像的 NDVI 植被健康指数分析。',
+    tags: ['CLIP', '多光谱', 'NDVI'],
+    provider: '大航蜂 AI 团队',
+    category: '异常检测',
+    spectrum: '多光谱',
+    scene: '环保',
+    price: '¥0.04/次',
+    calls: '1200次/月',
+    rating: 4.3,
   },
   {
     name: '车牌识别 OCR',
@@ -103,6 +159,8 @@ const algorithms = ref([
     tags: ['PaddleOCR', '车牌', '交通'],
     provider: '大航蜂 AI 团队',
     category: 'OCR识别',
+    spectrum: '可见光',
+    scene: '交通',
     price: '免费',
     calls: '6.5万次/月',
     rating: 4.6,
@@ -115,11 +173,15 @@ function doSearch() {
   filteredAlgorithms.value = algorithms.value.filter((item) => {
     const matchCategory =
       selectedCategory.value === '全部' || item.category === selectedCategory.value;
+    const matchSpectrum =
+      selectedSpectrum.value === '全部' || item.spectrum === selectedSpectrum.value;
+    const matchScene =
+      selectedScene.value === '全部' || item.scene === selectedScene.value;
     const matchKeyword =
       searchKeyword.value.trim() === '' ||
       item.name.includes(searchKeyword.value.trim()) ||
       item.desc.includes(searchKeyword.value.trim());
-    return matchCategory && matchKeyword;
+    return matchCategory && matchSpectrum && matchScene && matchKeyword;
   });
 }
 
@@ -143,7 +205,19 @@ function getRatingStars(rating: number) {
           <Select
             v-model:value="selectedCategory"
             :options="categoryOptions"
-            style="width: 160px"
+            style="width: 140px"
+            @change="doSearch"
+          />
+          <Select
+            v-model:value="selectedSpectrum"
+            :options="spectrumOptions"
+            style="width: 130px"
+            @change="doSearch"
+          />
+          <Select
+            v-model:value="selectedScene"
+            :options="sceneOptions"
+            style="width: 130px"
             @change="doSearch"
           />
           <Button type="primary" @click="doSearch">搜索</Button>
@@ -170,6 +244,9 @@ function getRatingStars(rating: number) {
               <div class="mt-3 flex flex-wrap gap-1">
                 <Tag v-for="tag in algo.tags" :key="tag" color="blue" size="small">
                   {{ tag }}
+                </Tag>
+                <Tag :color="algo.spectrum === '红外' ? 'red' : algo.spectrum === '多光谱' ? 'purple' : 'cyan'" size="small" :bordered="false">
+                  {{ algo.spectrum }}
                 </Tag>
               </div>
               <div class="mt-3 flex items-center justify-between text-xs text-slate-400">

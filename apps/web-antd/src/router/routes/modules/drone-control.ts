@@ -175,6 +175,20 @@ const routes: RouteRecordRaw[] = [
           activePath: '/device/uav',
         },
       },
+      {
+        path: 'dock-monitor',
+        name: 'DeviceDockMonitor',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/device/dock-monitor/index.vue'
+          ),
+        meta: {
+          hideInMenu: true,
+          icon: 'mdi:monitor-dashboard',
+          title: '机巢监控',
+          activePath: '/device/dock',
+        },
+      },
     ],
   },
 
@@ -189,6 +203,15 @@ const routes: RouteRecordRaw[] = [
       title: '飞控中心',
     },
     children: [
+      {
+        path: 'airspace-resource',
+        name: 'FlightAirspaceResource',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/flight/airspace-resource/index.vue'
+          ),
+        meta: { icon: 'mdi:vector-polyline', title: '空域资源中心' },
+      },
       {
         path: 'route-plan',
         name: 'FlightRoutePlan',
@@ -242,6 +265,29 @@ const routes: RouteRecordRaw[] = [
           icon: 'mdi:file-document-edit-outline',
           title: '需求提报',
         },
+      },
+    ],
+  },
+
+  {
+    component: BasicLayout,
+    path: '/applications',
+    name: 'DroneTopicCenter',
+    redirect: '/applications/forestry',
+    meta: {
+      icon: 'mdi:apps-box',
+      order: 123.5,
+      title: '专题应用',
+    },
+    children: [
+      {
+        path: 'forestry',
+        name: 'ApplicationForestryInspection',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/applications/forestry/index.vue'
+          ),
+        meta: { icon: 'mdi:pine-tree', title: '林草巡检专题' },
       },
     ],
   },
@@ -302,6 +348,18 @@ const routes: RouteRecordRaw[] = [
           icon: 'mdi:file-document-outline',
           title: '事件详情',
           activePath: '/event/list',
+        },
+      },
+      {
+        path: 'workorder-detail',
+        name: 'EventWorkorderDetail',
+        component: () =>
+          import('#/views/wemirr/drone-control/event/workorder-detail/index.vue'),
+        meta: {
+          hideInMenu: true,
+          icon: 'mdi:clipboard-text-outline',
+          title: '工单详情',
+          activePath: '/event/workorder',
         },
       },
     ],
@@ -418,13 +476,63 @@ const routes: RouteRecordRaw[] = [
     component: BasicLayout,
     path: '/ai-center',
     name: 'DroneAiCenter',
-    redirect: '/ai-center/model-repo',
+    redirect: '/ai-center/detection',
     meta: {
       icon: 'mdi:brain',
       order: 128,
       title: 'AI 模型中心',
     },
     children: [
+      {
+        path: 'data-source',
+        name: 'AiDataSource',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/ai-center/data-source/index.vue'
+          ),
+        meta: { icon: 'mdi:database-cog-outline', title: '数据源管理' },
+      },
+      {
+        path: 'task',
+        name: 'AiTaskCenter',
+        component: () =>
+          import('#/views/wemirr/drone-control/ai-center/task/index.vue'),
+        meta: { icon: 'mdi:tune-variant', title: '分析任务' },
+      },
+      {
+        path: 'rule',
+        name: 'AiAlertRule',
+        component: () =>
+          import('#/views/wemirr/drone-control/ai-center/rule/index.vue'),
+        meta: { icon: 'mdi:shield-alert-outline', title: '告警规则' },
+      },
+      {
+        path: 'media-library',
+        name: 'AiMediaLibrary',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/ai-center/media-library/index.vue'
+          ),
+        meta: { icon: 'mdi:folder-multiple-image', title: '媒体库' },
+      },
+      {
+        path: 'detection',
+        name: 'AiDetection',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/ai-center/detection/index.vue'
+          ),
+        meta: { icon: 'mdi:image-search-outline', title: '在线检测' },
+      },
+      {
+        path: 'detect-history',
+        name: 'AiDetectHistory',
+        component: () =>
+          import(
+            '#/views/wemirr/drone-control/ai-center/detect-history/index.vue'
+          ),
+        meta: { icon: 'mdi:history', title: '检测历史' },
+      },
       {
         path: 'model-repo',
         name: 'AiModelRepo',
@@ -462,33 +570,6 @@ const routes: RouteRecordRaw[] = [
     ],
   },
 
-  {
-    component: BasicLayout,
-    path: '/data-screen',
-    name: 'DroneDataScreen',
-    redirect: '/data-screen/index',
-    meta: {
-      hideChildrenInMenu: true,
-      icon: 'mdi:monitor-dashboard',
-      order: 118,
-      title: '数据驾驶舱',
-    },
-    children: [
-      {
-        path: 'index',
-        name: 'DataScreenIndex',
-        component: () =>
-          import(
-            '#/views/wemirr/drone-control/data-screen/index.vue'
-          ),
-        meta: {
-          hideInMenu: true,
-          icon: 'mdi:monitor-dashboard',
-          title: '数据驾驶舱',
-        },
-      },
-    ],
-  },
 ];
 
 export default routes;

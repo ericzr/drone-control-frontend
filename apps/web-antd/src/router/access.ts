@@ -22,12 +22,12 @@ const LOCAL_APPEND_ROUTE_NAMES = new Set([
   'DroneDispatchCenter',
   'DroneDeviceCenter',
   'DroneFlightCenter',
+  'DroneTopicCenter',
   'DroneEventCenter',
   'DronePilotCenter',
   'DroneGeoData',
   'DroneSettings',
   'DroneAiCenter',
-  'DroneDataScreen',
 ]);
 
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
