@@ -1,0 +1,1 @@
+import{O as t}from"./bootstrap-C2wIM_8y.js";function o(e){return t.get(`/workflow/flow-instances/${e}/comments`)}function r(e){return t.get(`/workflow/flow-instances/${e}/form-preview`)}export{o as a,r as g};
