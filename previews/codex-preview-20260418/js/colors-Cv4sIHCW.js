@@ -1,0 +1,1 @@
+function n(r){return r==="紧急"?"red":r==="高"?"orange":"blue"}function e(r){return r==="执行中"?"processing":r==="排队中"?"warning":r==="已完成"?"success":r==="返航中"?"orange":"default"}function t(r){return r==="critical"?"#ff4d4f":r==="warning"?"#faad14":"#1677ff"}function f(r){return r==="critical"?"紧急":r==="warning"?"一般":"提示"}export{e as a,t as b,f as c,n as g};

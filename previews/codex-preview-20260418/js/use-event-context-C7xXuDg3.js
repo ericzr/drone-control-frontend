@@ -1,0 +1,1 @@
+const l=[{label:"全部来源",value:"all"},{label:"AI 告警",value:"ai"},{label:"人工 / 其他",value:"manual"}];function u(e,a){return!a||a==="all"?!0:a==="ai"?e.includes("AI"):!e.includes("AI")}function n(e,a){return!a||a==="all"?!0:a==="ai"?e==="AI":e!=="AI"}export{l as E,n as a,u as m};

@@ -1,0 +1,1 @@
+import{a as r}from"./bootstrap-Cw6FCyBr.js";import{d as s,l as o,c as m,o as n,w as f,r as c,m as l,u as e}from"../jse/index-index-CpQORXl3.js";const i=s({__name:"formItem",setup(p){const t=o();return(a,u)=>(n(),m(e(r),l(e(t),{name:e(t).field}),{default:f(()=>[c(a.$slots,"default")]),_:3},16,["name"]))}});export{i as default};
