@@ -18,7 +18,7 @@
 - Root Directory: `./`
 - Framework Preset: `Other`
 - Install Command: `pnpm install --frozen-lockfile`
-- Build Command: `pnpm -F @vben/web-antd build`
+- Build Command: `pnpm build:antd`
 - Output Directory: `apps/web-antd/dist`
 
 仓库根目录已提供：
