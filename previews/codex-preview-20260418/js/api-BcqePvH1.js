@@ -1,0 +1,1 @@
+import{O as t}from"./bootstrap-aic0nW_Q.js";function o(e){return t.get(`/workflow/flow-instances/${e}/comments`)}function r(e){return t.get(`/workflow/flow-instances/${e}/form-preview`)}export{o as a,r as g};
