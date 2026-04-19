@@ -4,6 +4,8 @@ import { useAccessStore, useUserStore } from '@vben/stores';
 
 import { defineStore } from 'pinia';
 
+import { isStaticPreviewMode } from '#/utils/preview-env';
+
 export const useNotifyStore = defineStore('notify', () => {
   const userStore = useUserStore();
   const socket = ref<null | WebSocket>(null);
@@ -11,6 +13,10 @@ export const useNotifyStore = defineStore('notify', () => {
   const lastMessage = ref<any>(null);
 
   function connect() {
+    if (isStaticPreviewMode()) {
+      return;
+    }
+
     if (isConnected.value || socket.value) {
       return;
     }

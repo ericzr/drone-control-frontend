@@ -14,6 +14,7 @@ import { getAllMenusApi } from '#/api';
 import { BasicLayout, IFrameView } from '#/layouts';
 import { $t } from '#/locales';
 import { accessRoutes } from '#/router/routes';
+import { isStaticPreviewMode } from '#/utils/preview-env';
 
 const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
 const LOCAL_APPEND_ROUTE_NAMES = new Set([
@@ -32,13 +33,16 @@ const LOCAL_APPEND_ROUTE_NAMES = new Set([
 
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const pageMap: ComponentRecordType = import.meta.glob('../views/**/*.vue');
+  const accessMode = isStaticPreviewMode()
+    ? 'frontend'
+    : preferences.app.accessMode;
 
   const layoutMap: ComponentRecordType = {
     BasicLayout,
     IFrameView,
   };
 
-  const result = await generateAccessible(preferences.app.accessMode, {
+  const result = await generateAccessible(accessMode, {
     ...options,
     fetchMenuListAsync: async () => {
       message.loading({
@@ -54,7 +58,7 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
     pageMap,
   });
 
-  if (preferences.app.accessMode === 'backend') {
+  if (accessMode === 'backend') {
     return appendLocalBusinessRoutes(result, options);
   }
 
