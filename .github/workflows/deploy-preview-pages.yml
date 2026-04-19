@@ -50,14 +50,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build preview site
+      - name: Build workspace dependencies
         env:
-          VITE_BASE: /${{ steps.preview.outputs.repo_name }}/${{ steps.preview.outputs.dir }}/
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: pnpm build:antd
+
+      - name: Rebuild app for preview base path
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
           VITE_ROUTER_HISTORY: hash
           VITE_GLOB_API_URL: https://cloud.battcn.com/api
           VITE_GITEE_INTERCEPT: 'false'
           VITE_MAP_TYPE: mock
-        run: pnpm build:antd
+        run: |
+          cd apps/web-antd
+          pnpm exec vite build --mode production --base "/${{ steps.preview.outputs.repo_name }}/${{ steps.preview.outputs.dir }}/"
 
       - name: Prepare Pages artifact
         shell: bash
