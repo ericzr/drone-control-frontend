@@ -396,13 +396,13 @@ function refreshDispatchBoard() {
   <Page :auto-content-height="true">
     <div class="flex flex-col gap-4 p-2">
       <Alert
-        message="调度中心已升级为正式布局页"
-        description="当前版本重点承载地图、态势、视频和任务四条调度主链路。后续可在这个结构上逐步接入地图 SDK、图传服务和实时遥测接口。"
+        message="调度中心承担区域级统一调度"
+        description="这里不是单一无人机任务页，而是面向区域范围统一编排无人机、机场、无人车、机器人与摄像头协同作业的调度席。当前已先收口地图、态势、视频、任务四条主链，后续再接入真地图、真图传和实时遥测。"
         show-icon
         type="info"
       />
 
-      <Card :bordered="false" title="调度过滤与快捷动作">
+      <Card :bordered="false" title="区域调度过滤与快捷动作">
         <div class="dispatch-filters">
           <Space :size="[12, 12]" wrap>
             <Select
@@ -445,7 +445,7 @@ function refreshDispatchBoard() {
 
       <Row :gutter="[16, 16]">
         <Col :xl="16" :span="24">
-          <Card :bordered="false" title="一张图调度区">
+          <Card :bordered="false" title="区域协同调度图">
             <div class="dispatch-map">
               <div class="dispatch-map__toolbar">
                 <Tag v-for="item in layerTags" :key="item" color="processing">
@@ -484,7 +484,7 @@ function refreshDispatchBoard() {
         </Col>
 
         <Col :xl="8" :span="24">
-          <Card :bordered="false" title="机场与覆盖范围">
+          <Card :bordered="false" title="机场与区域覆盖能力">
             <div class="flex flex-col gap-3">
               <div
                 v-for="item in airportCards"
@@ -521,7 +521,7 @@ function refreshDispatchBoard() {
 
       <Row :gutter="[16, 16]">
         <Col :xl="14" :span="24">
-          <Card :bordered="false" title="视频调度区">
+          <Card :bordered="false" title="现场视频与图传调度区">
             <div class="grid gap-4 md:grid-cols-2">
               <div
                 v-for="item in videoFeeds"
@@ -581,7 +581,7 @@ function refreshDispatchBoard() {
 
       <Row :gutter="[16, 16]">
         <Col :xl="16" :span="24">
-          <Card :bordered="false" title="任务调度队列">
+          <Card :bordered="false" title="跨设备任务调度队列">
             <Table
               :columns="taskColumns"
               :data-source="filteredTaskRows"
@@ -621,7 +621,7 @@ function refreshDispatchBoard() {
         </Col>
 
         <Col :xl="8" :span="24">
-          <Card :bordered="false" title="调度建议与闭环流程">
+          <Card :bordered="false" title="调度建议与联动闭环">
             <div class="flex flex-col gap-4">
               <div class="dispatch-suggestion-panel">
                 <div

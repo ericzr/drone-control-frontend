@@ -1,4 +1,7 @@
-import type { CreateCrudOptionsRet } from '@fast-crud/fast-crud';
+import type {
+  CreateCrudOptionsProps,
+  CreateCrudOptionsRet,
+} from '@fast-crud/fast-crud';
 
 import { dict } from '@fast-crud/fast-crud';
 
@@ -50,10 +53,33 @@ const initialData = [
 
 const { pageRequest, addRequest, editRequest, delRequest } = createMockCrud(initialData);
 
-export default function createCrudOptions(): CreateCrudOptionsRet {
+export default function createCrudOptions(props: CreateCrudOptionsProps): CreateCrudOptionsRet {
   return {
     crudOptions: {
       request: { pageRequest, addRequest, editRequest, delRequest },
+      rowHandle: {
+        fixed: 'right',
+        width: 250,
+        buttons: {
+          detail: {
+            text: '详情',
+            type: 'link',
+            order: -1,
+            click: ({ row }: any) => {
+              (props as any).context?.openDetail?.(row);
+            },
+          },
+          dispatch: {
+            text: '创建任务',
+            type: 'link',
+            order: 0,
+            show: ({ row }: any) => row.status === '已批准',
+            click: ({ row }: any) => {
+              (props as any).context?.createDispatchFromRoute?.(row);
+            },
+          },
+        },
+      },
       columns: {
         id: { title: 'ID', type: 'text', column: { show: false }, form: { show: false } },
         applyNo: {

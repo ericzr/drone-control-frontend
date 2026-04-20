@@ -25,7 +25,7 @@ const mockData = [
 
 const mockCrud = createMockCrud(mockData);
 
-export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
+export default function (props: CreateCrudOptionsProps): CreateCrudOptionsRet {
   return {
     crudOptions: {
       request: {
@@ -33,6 +33,47 @@ export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
         addRequest: mockCrud.addRequest,
         editRequest: mockCrud.editRequest,
         delRequest: mockCrud.delRequest,
+      },
+      rowHandle: {
+        fixed: 'right',
+        width: 280,
+        buttons: {
+          detail: {
+            text: '详情',
+            type: 'link',
+            order: -1,
+            click: ({ row }: any) => {
+              (props as any).context?.openDetail?.(row);
+            },
+          },
+          approve: {
+            text: '审核',
+            type: 'link',
+            order: 0,
+            show: ({ row }: any) => row.status === '待审核',
+            click: ({ row }: any) => {
+              (props as any).context?.approveDemand?.(row);
+            },
+          },
+          toRoute: {
+            text: '生成航线',
+            type: 'link',
+            order: 1,
+            show: ({ row }: any) => row.status === '已通过',
+            click: ({ row }: any) => {
+              (props as any).context?.toRoute?.(row);
+            },
+          },
+          toDispatch: {
+            text: '派单',
+            type: 'link',
+            order: 2,
+            show: ({ row }: any) => row.status === '已通过' || row.status === '已派单',
+            click: ({ row }: any) => {
+              (props as any).context?.toDispatch?.(row);
+            },
+          },
+        },
       },
       columns: {
         id: hiddenIdColumn,

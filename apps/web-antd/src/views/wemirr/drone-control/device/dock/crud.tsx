@@ -198,7 +198,7 @@ const mockData = [
 
 const mockCrud = createMockCrud(mockData);
 
-export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
+export default function (props: CreateCrudOptionsProps): CreateCrudOptionsRet {
   return {
     crudOptions: {
       request: {
@@ -206,6 +206,32 @@ export default function (_props: CreateCrudOptionsProps): CreateCrudOptionsRet {
         addRequest: mockCrud.addRequest,
         editRequest: mockCrud.editRequest,
         delRequest: mockCrud.delRequest,
+      },
+      rowHandle: {
+        fixed: 'right',
+        width: 280,
+        buttons: {
+          detail: {
+            text: '详情',
+            type: 'link',
+            order: -1,
+            click: ({ row }: any) => {
+              (props as any).context?.router?.push(
+                `/device/detail?id=${row.id}`,
+              );
+            },
+          },
+          takeoff: {
+            text: '一键起飞',
+            type: 'link',
+            order: 0,
+            show: ({ row }: any) =>
+              row.status !== '离线' && row.droneStatus === '驻机就绪',
+            click: ({ row }: any) => {
+              (props as any).context?.openTakeoff?.(row);
+            },
+          },
+        },
       },
       columns: {
         id: hiddenIdColumn,

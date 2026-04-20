@@ -10,6 +10,7 @@ import { $t } from '@vben/locales';
 import { loadTenantSetting, thirdAuthGitee } from '#/api';
 import { useCaptchaModal } from '#/components/captcha';
 import { useAuthStore } from '#/store';
+import { isStaticPreviewMode } from '#/utils/preview-env';
 
 defineOptions({ name: 'Login' });
 
@@ -17,13 +18,28 @@ const authStore = useAuthStore();
 const loginRef = ref();
 const loginPropsRef = ref();
 const { open: openCaptcha } = useCaptchaModal();
+const previewMode = isStaticPreviewMode();
+
+const previewLoginProps = {
+  showCodeLogin: false,
+  showForgetPassword: false,
+  showQrcodeLogin: false,
+  showRegister: false,
+  showRememberMe: false,
+  showThirdPartyLogin: false,
+  subTitle: '静态预览环境已切换为演示登录模式',
+  tenantCode: '0000',
+  title: '云界空域OS',
+};
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
       component: 'VbenInput',
       componentProps: {
-        placeholder: '租户编码 0000 或 8888 账号 admin 密码 123456',
+        placeholder: previewMode
+          ? '预览模式免验证码，输入账号后可直接进入系统'
+          : '租户编码 0000 或 8888 账号 admin 密码 123456',
       },
       dependencies: {
         disabled: true,
@@ -101,6 +117,21 @@ onMounted(async () => {
     return;
   }
 
+  if (previewMode) {
+    const formApi = loginRef.value.getFormApi();
+    loginPropsRef.value = previewLoginProps;
+    formApi.updateSchema([
+      {
+        fieldName: 'tenantCode',
+        dependencies: {
+          show: false,
+        },
+      },
+    ]);
+    formApi.setFieldValue('tenantCode', previewLoginProps.tenantCode);
+    return;
+  }
+
   // 加载租户配置
   const formApi = loginRef.value.getFormApi();
   await loadTenantSetting({}).then((ret) => {
@@ -131,6 +162,11 @@ async function handleSubmit(
     thirdAuthGitee().then((ret: any) => {
       window.location.href = ret.authorizeUrl;
     });
+    return;
+  }
+
+  if (previewMode) {
+    await authStore.authLogin(params, onSuccess);
     return;
   }
 

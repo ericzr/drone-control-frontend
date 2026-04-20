@@ -20,8 +20,8 @@ import {
 } from 'ant-design-vue';
 
 const form = ref({
-  systemName: '大航蜂Drone OS',
-  shortName: '大航蜂',
+  systemName: '云界空域OS',
+  shortName: '云界',
   mapCenter: '108.94, 34.26',
   defaultZoom: 12,
   mapType: 'mock',
@@ -41,6 +41,22 @@ function handleSave() {
 }
 
 function handleReset() {
+  form.value = {
+    systemName: '云界空域OS',
+    shortName: '云界',
+    mapCenter: '108.94, 34.26',
+    defaultZoom: 12,
+    mapType: 'mock',
+    coordinateSystem: 'WGS84',
+    maxFlightAlt: 120,
+    defaultFlightSpeed: 10,
+    alertAutoAssign: true,
+    alertTimeout: 30,
+    videoStreamProtocol: 'WebRTC',
+    dataRetentionDays: 365,
+    enableWeatherCheck: true,
+    enableAirspaceCheck: false,
+  };
   message.info('已恢复默认配置');
 }
 </script>

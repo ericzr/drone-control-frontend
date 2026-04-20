@@ -6,9 +6,14 @@ import { preferences } from '@vben/preferences';
 
 import { $t } from '#/locales';
 
-const appName = computed(() => preferences.app.name);
 const logo = computed(() => preferences.logo.source);
 const logoDark = computed(() => preferences.logo.sourceDark);
+const logoExpanded = computed(
+  () => preferences.logo.expandedSource || preferences.logo.source,
+);
+const logoExpandedDark = computed(
+  () => preferences.logo.expandedSourceDark || preferences.logo.sourceDark || preferences.logo.source,
+);
 </script>
 
 <template>
@@ -22,12 +27,27 @@ const logoDark = computed(() => preferences.logo.sourceDark);
       </div>
     </div>
     <AuthPageLayout
-      :app-name="appName"
+      :app-name="''"
       :logo="logo"
       :logo-dark="logoDark"
       :page-description="$t('authentication.pageDesc')"
       :page-title="$t('authentication.pageTitle')"
-    />
+    >
+      <template #logo>
+        <div class="auth-brand">
+          <img
+            :src="logoExpanded"
+            :alt="$t('authentication.pageTitle')"
+            class="auth-brand__logo auth-brand__logo--light"
+          />
+          <img
+            :src="logoExpandedDark"
+            :alt="$t('authentication.pageTitle')"
+            class="auth-brand__logo auth-brand__logo--dark"
+          />
+        </div>
+      </template>
+    </AuthPageLayout>
   </div>
 </template>
 
@@ -115,5 +135,31 @@ const logoDark = computed(() => preferences.logo.sourceDark);
 .auth-wrapper :deep(.vben-authentication .left-section),
 .auth-wrapper :deep(.vben-authentication > div:first-child) {
   background: transparent !important;
+}
+
+.auth-brand {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+}
+
+.auth-brand__logo {
+  display: block;
+  width: auto;
+  height: 40px;
+  object-fit: contain;
+}
+
+.auth-brand__logo--dark {
+  display: none;
+}
+
+.auth-wrapper :deep(.dark) .auth-brand__logo--light {
+  display: none;
+}
+
+.auth-wrapper :deep(.dark) .auth-brand__logo--dark {
+  display: block;
 }
 </style>

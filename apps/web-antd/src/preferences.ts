@@ -1,5 +1,33 @@
 import { defineOverridesPreferences } from '@vben/preferences';
 
+function resolveAssetBase() {
+  if (typeof window === 'undefined') {
+    return '/';
+  }
+
+  const { hostname, pathname } = window.location;
+  const previewMatch = pathname.match(/^(\/.+\/previews\/[^/]+\/)/);
+  if (previewMatch?.[1]) {
+    return previewMatch[1];
+  }
+
+  if (hostname.endsWith('github.io')) {
+    const [repoName] = pathname.split('/').filter(Boolean);
+    if (repoName) {
+      return `/${repoName}/`;
+    }
+  }
+
+  return '/';
+}
+
+function resolveBrandAsset(path: string) {
+  const base = resolveAssetBase();
+  const normalizedPath = path.replace(/^\/+/, '');
+  const version = import.meta.env.VITE_APP_VERSION || 'brand';
+  return `${base}${normalizedPath}`.replace(/([^:]\/)\/+/g, '$1') + `?v=${version}`;
+}
+
 /**
  * @description 项目配置文件
  * 只需要覆盖项目中的一部分配置，不需要的配置不用覆盖，会自动使用默认配置
@@ -24,10 +52,14 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   logo: {
     enable: true,
-    source: '/logo.png',
+    expandedSource: resolveBrandAsset('/logo-full-light.png'),
+    expandedSourceDark: resolveBrandAsset('/logo-full-dark.png'),
+    fit: 'contain',
+    source: resolveBrandAsset('/logo-light.png'),
+    sourceDark: resolveBrandAsset('/logo-dark.png'),
   },
   copyright: {
-    companyName: '大航蜂Drone OS',
+    companyName: '云界空域OS',
     companySiteLink: 'https://docs.battcn.com/',
   },
   widget: {

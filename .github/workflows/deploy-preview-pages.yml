@@ -1,0 +1,89 @@
+name: Deploy Preview to GitHub Pages
+
+on:
+  push:
+    branches:
+      - 'codex/**'
+      - 'preview/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-pages-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.22.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Derive preview metadata
+        id: preview
+        shell: bash
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          PREVIEW_SLUG="${GITHUB_REF_NAME//\//-}"
+          PREVIEW_DIR="previews/${PREVIEW_SLUG}"
+          PREVIEW_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${REPO_NAME}/${PREVIEW_DIR}/"
+
+          echo "repo_name=${REPO_NAME}" >> "$GITHUB_OUTPUT"
+          echo "slug=${PREVIEW_SLUG}" >> "$GITHUB_OUTPUT"
+          echo "dir=${PREVIEW_DIR}" >> "$GITHUB_OUTPUT"
+          echo "url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace dependencies
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: pnpm build:antd
+
+      - name: Rebuild app for preview base path
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          VITE_ROUTER_HISTORY: hash
+          VITE_GLOB_API_URL: https://cloud.battcn.com/api
+          VITE_GITEE_INTERCEPT: 'false'
+          VITE_MAP_TYPE: mock
+        run: |
+          cd apps/web-antd
+          pnpm exec vite build --mode production --base "/${{ steps.preview.outputs.repo_name }}/${{ steps.preview.outputs.dir }}/"
+
+      - name: Prepare Pages artifact
+        shell: bash
+        run: |
+          touch apps/web-antd/dist/.nojekyll
+
+      - name: Deploy preview to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: apps/web-antd/dist
+          destination_dir: ${{ steps.preview.outputs.dir }}
+          keep_files: true
+
+      - name: Publish summary
+        run: |
+          echo "## GitHub Pages Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch: \`${GITHUB_REF_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Preview URL: ${{ steps.preview.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

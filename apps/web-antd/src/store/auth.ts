@@ -12,6 +12,24 @@ import { defineStore } from 'pinia';
 
 import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
+import { isStaticPreviewMode } from '#/utils/preview-env';
+
+function getPreviewUserInfo(): UserInfo {
+  return {
+    avatar: 'https://unpkg.com/@vbenjs/static-source@0.1.7/source/avatar-v1.webp',
+    desc: 'GitHub Pages 静态预览演示账号',
+    homePath: '/overview/index',
+    nickname: '演示账号',
+    roles: ['preview-admin'],
+    token: 'github-pages-preview-token',
+    userId: 'preview-admin',
+    username: 'admin',
+  };
+}
+
+function getPreviewAccessCodes() {
+  return ['preview:*', 'drone:*', 'system:*'];
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
@@ -30,6 +48,38 @@ export const useAuthStore = defineStore('auth', () => {
     params: Recordable<any>,
     onSuccess?: () => Promise<void> | void,
   ) {
+    if (isStaticPreviewMode()) {
+      const userInfo = getPreviewUserInfo();
+
+      try {
+        loginLoading.value = true;
+        accessStore.setAccessToken(userInfo.token);
+        accessStore.setAccessCodes(getPreviewAccessCodes());
+        userStore.setUserInfo(userInfo);
+        accessStore.setIsAccessChecked(false);
+
+        if (accessStore.loginExpired) {
+          accessStore.setLoginExpired(false);
+        } else {
+          onSuccess
+            ? await onSuccess?.()
+            : await router.push(userInfo.homePath || preferences.app.defaultHomePath);
+        }
+
+        notification.success({
+          description: `${$t('authentication.loginSuccessDesc')}:${userInfo.nickname}`,
+          duration: 3,
+          message: $t('authentication.loginSuccess'),
+        });
+      } finally {
+        loginLoading.value = false;
+      }
+
+      return {
+        userInfo,
+      };
+    }
+
     // 异步处理用户登录操作并获取 accessToken
     let userInfo: null | UserInfo = null;
     try {
@@ -79,7 +129,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout(redirect: boolean = true) {
     try {
-      await logoutApi();
+      if (!isStaticPreviewMode()) {
+        await logoutApi();
+      }
     } catch {
       // 不做任何处理
     }
@@ -98,6 +150,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchUserInfo() {
+    if (isStaticPreviewMode()) {
+      const userInfo = getPreviewUserInfo();
+      userStore.setUserInfo(userInfo);
+      return userInfo;
+    }
+
     let userInfo: null | UserInfo = null;
     userInfo = await getUserInfoApi();
     userStore.setUserInfo(userInfo);

@@ -10,8 +10,13 @@ import {
   Col,
   Descriptions,
   DescriptionsItem,
+  Form,
+  FormItem,
+  Input,
   Modal,
   Row,
+  Select,
+  SelectOption,
   Steps,
   Table,
   Tag,
@@ -23,7 +28,7 @@ import {
 import { useMap } from '#/utils/map';
 
 const mapRef = ref<HTMLElement | null>(null);
-const { initMap, addMarker, addPolygon } = useMap(mapRef);
+const { initMap, addMarker, addPolygon, addPolyline } = useMap(mapRef);
 
 interface Plan {
   id: string;
@@ -87,49 +92,81 @@ function selectPlan(plan: Plan) {
   activationTimeline.value = [];
 }
 
+const launchModalVisible = ref(false);
+const launchForm = ref({
+  targetPoint: '',
+  launchAirport: '',
+  notifyPersonnel: '',
+});
+
+const airportCoords: Record<string, [number, number]> = {
+  '林草防火机场': [108.88, 34.30],
+  '北坡应急起降点': [108.90, 34.33],
+  '交通主干道机场': [108.98, 34.22],
+  '水务巡检机场': [108.87, 34.24],
+  '城管巡检机场': [108.94, 34.20],
+};
+const targetCoords: Record<string, [number, number]> = {
+  '北坡林区 37° 区域': [108.91, 34.31],
+  '人民路交叉口': [108.95, 34.26],
+  '渭河 K12 段': [108.88, 34.25],
+  '工业区 B 区工地': [108.97, 34.24],
+};
+
 function activatePlan() {
   if (!selectedPlan.value) return;
+  launchForm.value = {
+    targetPoint: Object.keys(targetCoords)[0] || '',
+    launchAirport: selectedPlan.value.airports[0] || '',
+    notifyPersonnel: '值班主任、相关部门负责人',
+  };
+  launchModalVisible.value = true;
+}
 
-  Modal.confirm({
-    title: `启动预案：${selectedPlan.value.name}`,
-    content: `确认启动「${selectedPlan.value.name}」？将自动调度 ${selectedPlan.value.resources.length} 架无人机。`,
-    okText: '立即启动',
-    okButtonProps: { danger: true },
-    onOk() {
-      activated.value = true;
-      activationStep.value = 0;
-      activationTimeline.value = [];
+function confirmLaunch() {
+  launchModalVisible.value = false;
+  activated.value = true;
+  activationStep.value = 0;
+  activationTimeline.value = [];
 
-      const now = new Date();
-      const pad = (n: number) => `${n}`.padStart(2, '0');
-      const timeStr = () => `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const target = targetCoords[launchForm.value.targetPoint];
+  const airport = airportCoords[launchForm.value.launchAirport];
+  if (target) {
+    addMarker({ position: target, label: `事发点：${launchForm.value.targetPoint}` });
+  }
+  if (target && airport) {
+    addPolyline({ path: [airport, target], strokeColor: '#ff4d4f', strokeWidth: 2 });
+  }
 
-      const events = [
-        { text: '预案启动，进入应急响应状态', color: 'red' },
-        { text: `通知值班人员，抄送相关部门`, color: 'blue' },
-        { text: `调度 ${selectedPlan.value!.resources.join('、')}`, color: 'blue' },
-        { text: `${selectedPlan.value!.airports[0]} 执行起飞准备`, color: 'green' },
-        { text: '无人机已起飞，前往事发区域', color: 'green' },
-      ];
+  const now = new Date();
+  const pad = (n: number) => `${n}`.padStart(2, '0');
+  const timeStr = () => `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-      let i = 0;
-      const timer = setInterval(() => {
-        if (i >= events.length) {
-          clearInterval(timer);
-          message.success('应急资源已全部调度完成');
-          return;
-        }
-        now.setSeconds(now.getSeconds() + 15);
-        activationTimeline.value.push({
-          time: timeStr(),
-          text: events[i]!.text,
-          color: events[i]!.color,
-        });
-        activationStep.value = i + 1;
-        i++;
-      }, 800);
-    },
-  });
+  const events = [
+    { text: '预案启动，进入应急响应状态', color: 'red' },
+    { text: `通知 ${launchForm.value.notifyPersonnel}`, color: 'blue' },
+    { text: `事发点位：${launchForm.value.targetPoint}`, color: 'blue' },
+    { text: `调度 ${selectedPlan.value!.resources.join('、')}`, color: 'blue' },
+    { text: `${launchForm.value.launchAirport} 执行起飞准备`, color: 'green' },
+    { text: '无人机已起飞，前往事发区域', color: 'green' },
+  ];
+
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i >= events.length) {
+      clearInterval(timer);
+      message.success('应急资源已全部调度完成');
+      return;
+    }
+    now.setSeconds(now.getSeconds() + 15);
+    activationTimeline.value.push({
+      time: timeStr(),
+      text: events[i]!.text,
+      color: events[i]!.color,
+    });
+    activationStep.value = i + 1;
+    i++;
+  }, 800);
 }
 
 const planColumns = [
@@ -239,6 +276,29 @@ onMounted(async () => {
         </Card>
       </Col>
     </Row>
+
+    <Modal v-model:open="launchModalVisible" title="启动应急响应" ok-text="确认启动" @ok="confirmLaunch">
+      <Form layout="vertical">
+        <FormItem label="事发点位">
+          <Select v-model:value="launchForm.targetPoint" style="width: 100%">
+            <SelectOption v-for="p in Object.keys(targetCoords)" :key="p" :value="p">{{ p }}</SelectOption>
+          </Select>
+        </FormItem>
+        <FormItem label="起飞机场">
+          <Select v-model:value="launchForm.launchAirport" style="width: 100%">
+            <SelectOption v-for="a in (selectedPlan?.airports || [])" :key="a" :value="a">{{ a }}</SelectOption>
+          </Select>
+        </FormItem>
+        <FormItem label="通知人员">
+          <Input v-model:value="launchForm.notifyPersonnel" />
+        </FormItem>
+        <FormItem label="调度设备">
+          <div class="flex flex-wrap gap-1">
+            <Tag v-for="r in (selectedPlan?.resources || [])" :key="r" color="blue">{{ r }}</Tag>
+          </div>
+        </FormItem>
+      </Form>
+    </Modal>
   </Page>
 </template>
 
