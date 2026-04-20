@@ -1,0 +1,1 @@
+import{O as s}from"./bootstrap-B1FrtVNk.js";const o="/ai/models",p=t=>s.post(`${o}/page`,t),d=t=>s.post(o,t),c=(t,e)=>s.put(`${o}/${t}/modify`,e),n=t=>s.delete(`${o}/${t}`);export{d as A,n as D,p as P,c as U};
