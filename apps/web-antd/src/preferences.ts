@@ -1,8 +1,32 @@
 import { defineOverridesPreferences } from '@vben/preferences';
 
-const assetBase = import.meta.env.BASE_URL || '/';
-const withBase = (path: string) =>
-  `${assetBase}${path.replace(/^\/+/, '')}`.replace(/([^:]\/)\/+/g, '$1');
+function resolveAssetBase() {
+  if (typeof window === 'undefined') {
+    return '/';
+  }
+
+  const { hostname, pathname } = window.location;
+  const previewMatch = pathname.match(/^(\/.+\/previews\/[^/]+\/)/);
+  if (previewMatch?.[1]) {
+    return previewMatch[1];
+  }
+
+  if (hostname.endsWith('github.io')) {
+    const [repoName] = pathname.split('/').filter(Boolean);
+    if (repoName) {
+      return `/${repoName}/`;
+    }
+  }
+
+  return '/';
+}
+
+function resolveBrandAsset(path: string) {
+  const base = resolveAssetBase();
+  const normalizedPath = path.replace(/^\/+/, '');
+  const version = import.meta.env.VITE_APP_VERSION || 'brand';
+  return `${base}${normalizedPath}`.replace(/([^:]\/)\/+/g, '$1') + `?v=${version}`;
+}
 
 /**
  * @description 项目配置文件
@@ -28,11 +52,11 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   logo: {
     enable: true,
-    expandedSource: withBase('/logo-full-light.png'),
-    expandedSourceDark: withBase('/logo-full-dark.png'),
+    expandedSource: resolveBrandAsset('/logo-full-light.png'),
+    expandedSourceDark: resolveBrandAsset('/logo-full-dark.png'),
     fit: 'contain',
-    source: withBase('/logo-light.png'),
-    sourceDark: withBase('/logo-dark.png'),
+    source: resolveBrandAsset('/logo-light.png'),
+    sourceDark: resolveBrandAsset('/logo-dark.png'),
   },
   copyright: {
     companyName: '云界空域OS',

@@ -14,3 +14,22 @@ export function isStaticPreviewMode() {
     import.meta.env.VITE_STATIC_PREVIEW === true
   );
 }
+
+export function getStaticPreviewNamespaceSuffix() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const { hostname, pathname } = window.location;
+  if (hostname !== 'ericzr.github.io') {
+    return '';
+  }
+
+  const previewMatch = pathname.match(/\/previews\/([^/]+)\//);
+  if (previewMatch?.[1]) {
+    return `preview-${previewMatch[1]}`;
+  }
+
+  const [repoName] = pathname.split('/').filter(Boolean);
+  return repoName ? `gh-pages-${repoName}` : 'gh-pages';
+}
