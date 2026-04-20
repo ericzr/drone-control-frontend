@@ -1,5 +1,9 @@
 import { defineOverridesPreferences } from '@vben/preferences';
 
+const assetBase = import.meta.env.BASE_URL || '/';
+const withBase = (path: string) =>
+  `${assetBase}${path.replace(/^\/+/, '')}`.replace(/([^:]\/)\/+/g, '$1');
+
 /**
  * @description 项目配置文件
  * 只需要覆盖项目中的一部分配置，不需要的配置不用覆盖，会自动使用默认配置
@@ -24,11 +28,11 @@ export const overridesPreferences = defineOverridesPreferences({
   },
   logo: {
     enable: true,
-    expandedSource: '/logo-full-light.png',
-    expandedSourceDark: '/logo-full-dark.png',
+    expandedSource: withBase('/logo-full-light.png'),
+    expandedSourceDark: withBase('/logo-full-dark.png'),
     fit: 'contain',
-    source: '/logo-light.png',
-    sourceDark: '/logo-dark.png',
+    source: withBase('/logo-light.png'),
+    sourceDark: withBase('/logo-dark.png'),
   },
   copyright: {
     companyName: '云界空域OS',
